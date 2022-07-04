@@ -65,8 +65,9 @@ class Menu(Widget):
         self,
         arg1: Union[List[menuitem], MenuItemList],
         title: str = "",
-        add_back: bool = True,
     ) -> None:
+        self.skip_rows = 0  # Reset scrolling
+
         if isinstance(arg1, MenuItemList):
             self._menu_items = arg1.items
             self.title = arg1.title
@@ -103,12 +104,47 @@ class Menu(Widget):
         return self._menu_items[self.index - 1][2]
 
     def render(self) -> RenderableType:
+        MENU_CHROME = 4  # Unusable space in the menu for titles andn padding
+        menu_max_rows = self.size.height - MENU_CHROME
+        subtitle = ""
+
         menu_table = Table.grid()
         menu_table.add_column("key", justify="left", width=5, style=self.key_style)
         menu_table.add_column(
             "action", justify="left", style=self.key_description_style
         )
+
+        # Determine if we need to scroll
+        if len(self._menu_items) > menu_max_rows:
+            top = 1 if self.index == 0 else (self.skip_rows + 1)
+            bottom = top + menu_max_rows - 1
+
+            # if index would be the bottom; scroll if the bottom isn't the last row.
+            if self.index == len(self._menu_items):
+                self.skip_rows = self.index - menu_max_rows
+            elif self.index >= bottom and bottom < len(self._menu_items):
+                self.skip_rows = self.index - menu_max_rows + 1
+
+            # if index would be the top; scroll if the top isnt the first row
+            if self.index == 1:
+                self.skip_rows = 0
+            elif self.index <= top and top != 1:
+                self.skip_rows = self.index - 2
+
+            # Recalc top & bottom to determine subtitles
+            top = 1 if self.index == 0 else (self.skip_rows + 1)
+            bottom = top + menu_max_rows - 1
+            if top == 1:
+                subtitle = "▼  more  ▼"
+            elif bottom == len(self._menu_items):
+                subtitle = "▲  more  ▲"
+            else:
+                subtitle = "▼▲ more ▼▲"
+
         for count, item in enumerate(self._menu_items):
+            # Account for scrolling
+            if count < self.skip_rows:
+                continue
             if item is None:
                 menu_table.add_row("", "")
             else:
@@ -118,7 +154,11 @@ class Menu(Widget):
                 else:
                     menu_table.add_row(f"({bind_chr})", description)
         menu = Panel(
-            menu_table, title=self.title, style=self.menu_style, padding=(1, 1)
+            menu_table,
+            title=self.title,
+            style=self.menu_style,
+            padding=(1, 1),
+            subtitle=subtitle,
         )
         return menu
 
