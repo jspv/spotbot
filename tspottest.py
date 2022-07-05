@@ -10,8 +10,9 @@ from textual.binding import Bindings
 from datetime import datetime
 
 
-# Servo adjustment increment in µs
+# Servo adjustment increment in µs and ∠
 current_us_increment = 1500
+current_angle_increment = 20.0
 
 
 def status_clock() -> str:
@@ -22,6 +23,12 @@ def set_us_increment(increment: int) -> None:
     """Set µs incrment"""
     global current_us_increment
     current_us_increment = increment
+
+
+def set_angle_increment(increment: float) -> None:
+    """Set ∠ incrment"""
+    global current_angle_increment
+    current_angle_increment = increment
 
 
 def get_us_increment() -> str:
@@ -77,7 +84,8 @@ class MyApp(App):
             "main",
             [
                 ("C", "Config Servo", "tbd"),
-                ("I", "Change increment", "increment_menu"),
+                ("I", "Change increment µs", "us_increment_menu"),
+                ("N", "Change increment ∠", "angle_increment_menu"),
                 None,
                 ("L", "Load Config", "tbd"),
                 ("S", "Save Config", "tbd"),
@@ -85,7 +93,6 @@ class MyApp(App):
                 ("D", "Set Speed", "tbd"),
                 ("A", "Set Acceleration", "tbd"),
                 ("E", "Sequence Menu", "tbd"),
-                None,
                 ("Q", "<-- Back", "menu_backout"),
             ],
             title="[bold][u]Main Menu[/u][/bold]",
@@ -107,12 +114,63 @@ class MyApp(App):
             title="[bold][u]Servo Increment (µs)[u][/bold]",
         )
 
+        self.menus.add(
+            "angle_increment",
+            [
+                ("0", ".5°", "set_angle_increment(0.5)"),
+                ("1", "1°", "set_angle_increment(1.0)"),
+                ("2", "2°", "set_angle_increment(2.0)"),
+                ("5", "5°", "set_angle_increment(5.0)"),
+                ("x", "10°", "set_angle_increment(10.0)"),
+                ("b", "20°", "set_angle_increment(20.0)"),
+                ("c", "45°", "set_angle_increment(45.0)"),
+                ("d", "90°", "set_angle_increment(90.0)"),
+                None,
+                ("Q", "<-- Back", "menu_backout"),
+            ],
+            title="[bold][u]Servo Increment (∠)[u][/bold]",
+        )
+
         self.menu = menu.Menu(
             key_style="bold blue on default",
             key_description_style="blue on default",
             menu_style="blue on default",
+            refresh_callback=self.footer.regenerate,
+            app=self,
         )
         self.menu.visible = False
+
+        # Build servo tables
+        self.mappings = {}
+        self.mappings["left"] = [
+            ("a", "Front-Right-Bottom", "S0", "1500", "90.0"),
+            ("b", "Front-Right-Bottom", "S0", "1500", "90.0"),
+            ("c", "Front-Right-Bottom", "S0", "1500", "90.0"),
+            None,
+            ("d", "Front-Right-Bottom", "S0", "1500", "90.0"),
+            ("e", "Front-Right-Bottom", "S0", "1500", "90.0"),
+            ("f", "Front-Right-Bottom", "S0", "1500", "90.0"),
+        ]
+
+        self.mappings["right"] = [
+            ("g", "Front-Right-Bottom", "S0", "1500", "90.0"),
+            ("h", "Front-Right-Bottom", "S0", "1500", "90.0"),
+            ("i", "Front-Right-Bottom", "S0", "1500", "90.0"),
+            None,
+            ("j", "Front-Right-Bottom", "S0", "1500", "90.0"),
+            ("k", "Front-Right-Bottom", "S0", "1500", "90.0"),
+            ("l", "Front-Right-Bottom", "S0", "1500", "90.0"),
+        ]
+
+        self.body.update(self.mappings)
+
+        # Bindings for servo hot-keys
+        for table in self.mappings.keys():
+            for row in self.mappings[table]:
+                if row is None:
+                    continue
+                (key, desc, servo, us, angle) = row
+                await self.bind(key, f"servo_key('{key}')", "", show=False)
 
         # Layout the weidgets
         await self.view.dock(self.header, edge="top")
@@ -161,39 +219,39 @@ class MyApp(App):
         if len(self.status_stack) == 0:
             self.status.regenerate_status_from_dict = True
 
-    def push_menu(self) -> None:
-        """Save current menu and bindings"""
-        self.menu_stack.append((self.menu.menuname, self.bindings))
+    # def push_menu(self) -> None:
+    #     """Save current menu and bindings"""
+    #     self.menu_stack.append((self.menu.menuname, self.bindings))
 
-    async def pop_menu(self, pop_all=False) -> None:
-        """Recover last menu and bindings"""
-        if pop_all is True:
-            """pop all until at the bottom"""
-            while self.menu.menuname is not None:
-                (self.menu.menuname, self.bindings) = self.menu_stack.pop()
-        else:
-            (self.menu.menuname, self.bindings) = self.menu_stack.pop()
-        if self.menu.menuname is not None:
-            await self.menu.update_menu(self.menus.get_menu(self.menu.menuname))
-            await self.menu_bind(self.menus.get_menu(self.menu.menuname))
-        else:  # We're back to the main app
-            self.footer.regenerate()
-            self.menu.visible = False
+    # async def pop_menu(self, pop_all=False) -> None:
+    #     """Recover last menu and bindings"""
+    #     if pop_all is True:
+    #         """pop all until at the bottom"""
+    #         while self.menu.menuname is not None:
+    #             (self.menu.menuname, self.bindings) = self.menu_stack.pop()
+    #     else:
+    #         (self.menu.menuname, self.bindings) = self.menu_stack.pop()
+    #     if self.menu.menuname is not None:
+    #         await self.menu.update_menu(self.menus.get_menu(self.menu.menuname))
+    #         await self.menu_bind(self.menus.get_menu(self.menu.menuname))
+    #     else:  # We're back to the main app
+    #         self.footer.regenerate()
+    #         self.menu.visible = False
 
-    async def menu_bind(self, menuitems: menu.MenuItemList):
-        """Build new bindings and footer based on the Menu"""
-        self.bindings = Bindings()
-        await self.bind("ctrl+c", "quit", show=False)
-        await self.bind("escape", "menu_escape", show=False)
-        await self.bind("down", "menu_down", show=False)
-        await self.bind("up", "menu_up", show=False)
-        await self.bind("enter", "menu_enter", show=False)
-        for item in menuitems.items:
-            if item is None:
-                continue
-            (chr, description, callback) = item
-            await self.bind(chr.lower(), callback)
-        self.footer.regenerate()
+    # async def menu_bind(self, menuitems: menu.MenuItemList):
+    #     """Build new bindings and footer based on the Menu"""
+    #     self.bindings = Bindings()
+    #     await self.bind("ctrl+c", "quit", show=False)
+    #     await self.bind("escape", "menu_escape", show=False)
+    #     await self.bind("down", "menu_down", show=False)
+    #     await self.bind("up", "menu_up", show=False)
+    #     await self.bind("enter", "menu_enter", show=False)
+    #     for item in menuitems.items:
+    #         if item is None:
+    #             continue
+    #         (chr, description, callback) = item
+    #         await self.bind(chr.lower(), callback)
+    #     self.footer.regenerate()
 
     async def action_pop_status(self) -> None:
         """Back out and return to last status"""
@@ -201,25 +259,38 @@ class MyApp(App):
 
     async def action_main_menu(self) -> None:
         """Launch the main menu"""
-        self.push_menu()
-        await self.menu.update_menu(self.menus.get_menu("main"))
-        await self.menu_bind(self.menus.get_menu("main"))
+        # self.push_menu()
+        # await self.menu.update_menu(self.menus.get_menu("main"))
+        # await self.menu_bind(self.menus.get_menu("main"))
+        await self.menu.load_menu(self.menus.get_menu("main"))
         self.menu.visible = True
 
-    async def action_increment_menu(self) -> None:
+    async def action_us_increment_menu(self) -> None:
         """Launch the increment menu"""
-        if self.menu.visible is True:
-            self.push_menu()
-        await self.menu.update_menu(self.menus.get_menu("us_increment"))
-        await self.menu_bind(self.menus.get_menu("us_increment"))
+        # if self.menu.visible is True:
+        #     self.push_menu()
+        # await self.menu.update_menu(self.menus.get_menu("us_increment"))
+        # await self.menu_bind(self.menus.get_menu("us_increment"))
+        await self.menu.load_menu(self.menus.get_menu("us_increment"))
+        self.menu.visible = True
+
+    async def action_angle_increment_menu(self) -> None:
+        """Launch the increment menu"""
+        # if self.menu.visible is True:
+        #     self.push_menu()
+        # await self.menu.update_menu(self.menus.get_menu("angle_increment"))
+        # await self.menu_bind(self.menus.get_menu("angle_increment"))
+        await self.menu.load_menu(
+            self.menus.get_menu("angle_increment"),
+        )
         self.menu.visible = True
 
     async def action_menu_backout(self) -> None:
         """Back out to previous menu"""
-        await self.pop_menu()
+        await self.menu.pop_menu()
 
     async def action_menu_escape(self) -> None:
-        await self.pop_menu(pop_all=True)
+        await self.menu.pop_menu(pop_all=True)
 
     async def action_menu_up(self) -> None:
         self.menu.menu_up()
@@ -237,11 +308,18 @@ class MyApp(App):
 
     async def action_tbd(self) -> None:
         """Simulate a menu-action"""
-        await self.pop_menu(pop_all=True)
+        await self.menu.pop_menu(pop_all=True)
 
     async def action_set_us_increment(self, increment: int) -> None:
         set_us_increment(increment)
-        await self.pop_menu(pop_all=True)
+        await self.menu.pop_menu(pop_all=True)
+
+    async def action_set_angle_increment(self, increment: float) -> None:
+        set_angle_increment(increment)
+        await self.menu.pop_menu(pop_all=True)
+
+    async def action_servo_key(self, key: str) -> None:
+        self.body.key_press(key)
 
 
 MyApp.run(log="textual.log", title="Spotmicro Configuration")
