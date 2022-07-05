@@ -7,6 +7,7 @@ from rich.console import RenderableType
 from rich.table import Table
 from rich.panel import Panel
 from rich.style import StyleType
+from rich.text import Text
 
 
 # type vector for easier reading
@@ -22,7 +23,7 @@ class MenuItemList(object):
         self.title = title
 
 
-class MenuItems(object):
+class MenuBook(object):
     """Manage a dictionary containing multiple Menu item lists"""
 
     def __init__(self, menus: dict = {}) -> None:
@@ -60,6 +61,7 @@ class Menu(Widget):
         key_style: StyleType = "bold white on dark_green",
         key_description_style: StyleType = "white on dark_green",
         menu_style: StyleType = "none",
+        max_size: int = 30,
         **kwargs,
     ) -> None:
         # Since we manage bindings, need to have a reference to the calling app
@@ -83,10 +85,10 @@ class Menu(Widget):
             self.menuname = None
 
         self.refresh_callback = refresh_callback
-        # self.myapp = app
         self.key_style = key_style
         self.key_description_style = key_description_style
         self.menu_style = menu_style
+        self.max_size = max_size
 
     index: Reactive[int] = Reactive(0)
     menu_style: Reactive[StyleType] = Reactive("none")
@@ -106,7 +108,7 @@ class Menu(Widget):
         else:
             self._menu_items.append(None)
 
-    def update_menu(
+    def _update_menu(
         self,
         arg1: Union[List[menuitem], MenuItemList],
         title: str = "",
@@ -125,8 +127,23 @@ class Menu(Widget):
             self.menuname = menuname
             self.index = 0
 
-    async def load_menu(self, menu: MenuItemList):
-        """Load a show a menu, managing hotkey bindings"""
+    async def load_menu(
+        self,
+        menu: Union[List[menuitem], MenuItemList],
+        title: str = "",
+        menuname: str = "",
+    ) -> None:
+        """Load and show a menu managing hotkey bindings
+
+        Parameters
+        ----------
+        menu : Union[List[menuitem], MenuItemList]
+            The menu details to load
+        title : str, optional
+            Menu title, only needed when not using a MenuItemList, by default ""
+        menuname : str, optional
+            Menuname, only needed when not using a MenuItemList, by default ""
+        """
 
         # push current menu and bindings onto the stack
         # the pre-menu state will have menuname = None
@@ -135,12 +152,49 @@ class Menu(Widget):
         )
 
         # build and show the new menu
-        self.update_menu(menu)
-        await self.bind_current_menu()
+        if isinstance(menu, MenuItemList):
+            self._menu_items = menu.items
+            self.title = menu.title
+            self.menuname = menu.name
+        else:
+            self._menu_items = menu
+            self.title = title
+            self.menuname = menuname
+
+        self.skip_rows = 0
+        self.index = 0
+
+        # Bind the hotkeys in the new ment
+        await self._bind_current_menu()
+
+        # Resize menu
+        self._resize_menu()
+
         if self.refresh_callback is not None:
             self.refresh_callback()
 
-    async def bind_current_menu(self) -> None:
+    def _resize_menu(self) -> None:
+        """Calculate new menu size based on entries"""
+
+        HOTKEY_PADDING = 4
+        MENU_CHROME = 5
+
+        # Adjust menu size
+        longest_desc_len = 0
+        for item in self._menu_items:
+            if item is None:
+                continue
+            longest_desc_len = max(longest_desc_len, len(item[1]))
+        longest_desc_len = longest_desc_len + HOTKEY_PADDING + MENU_CHROME
+        longest_desc_len = max(
+            longest_desc_len, len(Text.from_markup(self.title)) + MENU_CHROME
+        )
+
+        self.layout_size = (
+            longest_desc_len if longest_desc_len < self.max_size else self.max_size
+        )
+
+    async def _bind_current_menu(self) -> None:
         # Rebind hotkeys to new menu
         self.app.bindings = Bindings()
         await self.app.bind("ctrl+c", "quit", show=False)
@@ -172,10 +226,15 @@ class Menu(Widget):
                 self.title,
                 self.app.bindings,
             ) = self.menu_stack.pop()
-        if self.menuname is not None:
-            self.bind_current_menu()
-        else:  # We're back to the main app
+
+        self.skip_rows = 0
+        self.index = 0
+        self._bind_current_menu()
+        self._resize_menu()
+
+        if self.menuname is None:
             self.visible = False
+
         if self.refresh_callback is not None:
             self.refresh_callback()
 
@@ -204,7 +263,7 @@ class Menu(Widget):
         return self._menu_items[self.index - 1][2]
 
     def render(self) -> RenderableType:
-        MENU_CHROME = 4  # Unusable space in the menu for titles andn padding
+        MENU_CHROME = 4  # Unusable space in the menu for titles and padding
         menu_max_rows = self.size.height - MENU_CHROME
         subtitle = ""
 
