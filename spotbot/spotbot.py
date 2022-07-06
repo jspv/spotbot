@@ -1,10 +1,10 @@
 from textual import events
 from textual.app import App
 from textual.widgets import Header, Placeholder
-from footer import Footer
-from status import Status
-from menu import Menu
-from body import Body
+from Widgets.footer import Footer
+from Widgets.status import Status
+from Widgets.menu import Menu
+from Widgets.body import Body
 from utils import Utils
 
 # import menu

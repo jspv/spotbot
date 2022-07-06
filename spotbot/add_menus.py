@@ -1,15 +1,15 @@
-import menu
+from Widgets.menu import Menu
 
 
-def add_menus(menu: menu.Menu) -> None:
-    menu.add_menu(
+def add_menus(menuwidget: Menu) -> None:
+    menuwidget.add_menu(
         "main",
         [
             ("C", "Config Servo", "tbd"),
             ("I", "Change increment µs", "menu.load_menu('us_increment')"),
             ("N", "Change increment ∠", "menu.load_menu('angle_increment')"),
             ("M", "Swich Mode µs/∠", "switch_servo_mode"),
-             None,
+            None,
             ("L", "Load Config", "tbd"),
             ("S", "Save Config", "tbd"),
             None,
@@ -20,7 +20,7 @@ def add_menus(menu: menu.Menu) -> None:
         ],
         title="[bold][u]Main Menu[/u][/bold]",
     )
-    menu.add_menu(
+    menuwidget.add_menu(
         "us_increment",
         [
             ("1", "1 µs", "set_us_increment(1)"),
@@ -36,7 +36,7 @@ def add_menus(menu: menu.Menu) -> None:
         ],
         title="[bold][u]Servo Increment (µs)[u][/bold]",
     )
-    menu.add_menu(
+    menuwidget.add_menu(
         "angle_increment",
         [
             ("0", ".5°", "set_angle_increment(0.5)"),
