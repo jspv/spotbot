@@ -211,7 +211,7 @@ class Menu(Widget):
         # Rebind hotkeys to new menu
         self.app.bindings = Bindings()
         await self.app.bind("ctrl+c", "quit", show=False)
-        await self.app.bind("escape", "menu_escape", show=False)
+        await self.app.bind("escape", "menu.menu_escape", show=False)
         await self.app.bind("down", "menu.menu_down", show=False)
         await self.app.bind("up", "menu.menu_up", show=False)
         await self.app.bind("enter", "menu.menu_enter", show=False)
@@ -251,40 +251,10 @@ class Menu(Widget):
         if self.refresh_callback is not None:
             self.refresh_callback()
 
-    # def menu_down(self) -> None:
-    #     while True:
-    #         if self.index == len(self._menu_items):
-    #             self.index = 1
-    #         else:
-    #             self.index += 1
-    #         if self._menu_items[self.index - 1] is not None:
-    #             break
-
-    # def menu_up(self) -> None:
-    #     while True:
-    #         if self.index == 0 or self.index == 1:
-    #             self.index = len(self._menu_items)
-    #         else:
-    #             self.index -= 1
-    #         if self._menu_items[self.index - 1] is not None:
-    #             break
-
-    # def menu_choose(self) -> Optional[str]:
-    #     if self.index == 0:
-    #         return None
-    #     # return the callback for the entry
-    #     return self._menu_items[self.index - 1][2]
-
     async def action_menu_enter(self) -> None:
         if self.index == 0:
             return None
         await self.app.action(self._menu_items[self.index - 1][2])
-        # callback = self._menu_items[self.index - 1][2]
-        # if callback is not None:
-        #     # call the action directly
-        #     target, params = textual.actions.parse(callback)
-        #     action_target = getattr(self, f"action_{target}")
-        #     await action_target(*params)
 
     async def action_load_menu(self, menuname: str) -> None:
         await self.load_menu(menuname)
