@@ -81,12 +81,16 @@ class Body(Widget):
     def key_press(self, key: str) -> None:
         if key != self.selection:
             self.selection = key
-            # self.render()
+
+    def get_selection(self) -> str:
+        return self.selection
+
+    def clear_selection(self) -> None:
+        self.selection = ""
 
     def update(self, mappings: dict) -> None:
         """Update the servo mappings and refresh the widget"""
         self.mappings = mappings
-        # self.render()
 
     def render(self) -> Panel:
 

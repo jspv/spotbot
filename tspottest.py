@@ -5,37 +5,11 @@ from footer import Footer
 from status import Status
 from menu import Menu
 from body import Body
+from utils import Utils
 
 # import menu
 import add_menus
 from textual.binding import Bindings
-from datetime import datetime
-
-# Servo adjustment increment in µs and ∠
-current_us_increment = 1500
-current_angle_increment = 20.0
-
-
-def status_clock() -> str:
-    return f"[r]{datetime.now().time().strftime('%X')}[/r]"
-
-
-def set_us_increment(increment: int) -> None:
-    """Set µs incrment"""
-    global current_us_increment
-    current_us_increment = increment
-
-
-def set_angle_increment(increment: float) -> None:
-    """Set ∠ incrment"""
-    global current_angle_increment
-    current_angle_increment = increment
-
-
-def get_us_increment() -> str:
-    """Get current µs incrment as a str"""
-    global current_us_increment
-    return "{:>4}".format(str(current_us_increment))
 
 
 class MyApp(App):
@@ -55,6 +29,15 @@ class MyApp(App):
             "Quit",
         )
 
+        # access convenience utilites
+        self.utils = Utils(self)
+
+        # initalize
+        self.servo_mode = "angle"
+        # Servo adjustment increment in µs and ∠
+        self.us_increment = 1500
+        self.angle_increment = 20.0
+
     # on mount is what is run when the applicaiton starts (after on_load)
     async def on_mount(self, event: events.Mount) -> None:
         """Create and dock the widgets."""
@@ -67,10 +50,20 @@ class MyApp(App):
 
         # Status line
         self.status = Status(style="yellow on default")
+
+        self.status.add_entry("mode", "[b]Mode", self.servo_mode)
+
         self.status.add_entry(
-            "increment", "Increment", get_us_increment, value_style="reverse"
+            "angle_increment", "[b]∠ Increment", self.utils.get_angle_increment
         )
-        self.status.add_entry("time", "Time", status_clock)
+
+        self.status.add_entry(
+            "us_increment",
+            "[b]µs Increment",
+            self.utils.get_us_increment,
+            # value_style="reverse",
+        )
+        self.status.add_entry("time", "Time", self.utils.status_clock)
         self.status.layout_offset_y  # make room for footer
 
         # Footer
@@ -93,8 +86,8 @@ class MyApp(App):
         add_menus.add_menus(self.menu)
 
         # Build servo tables
-        self.mappings = {}
-        self.mappings["left"] = [
+        self.servo_status = {}
+        self.servo_status["left"] = [
             ("a", "Front-Right-Bottom", "S0", "1500", "90.0"),
             ("b", "Front-Right-Bottom", "S0", "1500", "90.0"),
             ("c", "Front-Right-Bottom", "S0", "1500", "90.0"),
@@ -104,7 +97,7 @@ class MyApp(App):
             ("f", "Front-Right-Bottom", "S0", "1500", "90.0"),
         ]
 
-        self.mappings["right"] = [
+        self.servo_status["right"] = [
             ("g", "Front-Right-Bottom", "S0", "1500", "90.0"),
             ("h", "Front-Right-Bottom", "S0", "1500", "90.0"),
             ("i", "Front-Right-Bottom", "S0", "1500", "90.0"),
@@ -114,11 +107,12 @@ class MyApp(App):
             ("l", "Front-Right-Bottom", "S0", "1500", "90.0"),
         ]
 
-        self.body.update(self.mappings)
+        # update the tables
+        self.body.update(self.servo_status)
 
         # Bindings for servo hot-keys
-        for table in self.mappings.keys():
-            for row in self.mappings[table]:
+        for table in self.servo_status.keys():
+            for row in self.servo_status[table]:
                 if row is None:
                     continue
                 (key, desc, servo, us, angle) = row
@@ -184,15 +178,23 @@ class MyApp(App):
         await self.menu.pop_menu(pop_all=True)
 
     async def action_set_us_increment(self, increment: int) -> None:
-        set_us_increment(increment)
+        self.us_increment = increment
+        self.status.refresh()
         await self.menu.pop_menu(pop_all=True)
 
     async def action_set_angle_increment(self, increment: float) -> None:
-        set_angle_increment(increment)
+        self.angle_increment = increment
+        self.status.refresh()
         await self.menu.pop_menu(pop_all=True)
 
     async def action_servo_key(self, key: str) -> None:
         self.body.key_press(key)
+
+    async def action_toggle_servo_mode(self) -> None:
+        if self.servo_mode == "angle":
+            self.servo_mode = "us"
+        else:
+            self.servo_mode = "angle"
 
 
 MyApp.run(log="textual.log", log_verbosity=3, title="Spotmicro Configuration")
