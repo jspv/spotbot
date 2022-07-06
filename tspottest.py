@@ -1,14 +1,15 @@
 from textual import events
 from textual.app import App
 from textual.widgets import Header, Placeholder
-import textual.actions
-import footer
-import status
-import menu
-import body
+from footer import Footer
+from status import Status
+from menu import Menu
+from body import Body
+
+# import menu
+import add_menus
 from textual.binding import Bindings
 from datetime import datetime
-
 
 # Servo adjustment increment in µs and ∠
 current_us_increment = 1500
@@ -58,14 +59,14 @@ class MyApp(App):
     async def on_mount(self, event: events.Mount) -> None:
         """Create and dock the widgets."""
         self.header = Header(style="bold blue")
-        self.body = body.Body(name="body")
+        self.body = Body(name="body")
         self.bodypadding = Placeholder(name="bodypadding")  # force body up
 
         # Status and footer will be on layer 1 and will resize with the menu,
         # Body will be on layer 0 and will not.
 
         # Status line
-        self.status = status.Status(style="yellow on default")
+        self.status = Status(style="yellow on default")
         self.status.add_entry(
             "increment", "Increment", get_us_increment, value_style="reverse"
         )
@@ -73,65 +74,13 @@ class MyApp(App):
         self.status.layout_offset_y  # make room for footer
 
         # Footer
-        self.footer = footer.Footer(
+        self.footer = Footer(
             key_style="bold blue on default",
             key_hover_style="bold blue reverse",
             key_description_style="gray on default",
         )
 
-        self.menus = menu.MenuItems()
-        self.menus.add(
-            "main",
-            [
-                ("C", "Config Servo", "tbd"),
-                ("I", "Change increment µs", "us_increment_menu"),
-                ("N", "Change increment ∠", "angle_increment_menu"),
-                None,
-                ("L", "Load Config", "tbd"),
-                ("S", "Save Config", "tbd"),
-                None,
-                ("D", "Set Speed", "tbd"),
-                ("A", "Set Acceleration", "tbd"),
-                ("E", "Sequence Menu", "tbd"),
-                ("Q", "<-- Back", "menu_backout"),
-            ],
-            title="[bold][u]Main Menu[/u][/bold]",
-        )
-        self.menus.add(
-            "us_increment",
-            [
-                ("1", "1 µs", "set_us_increment(1)"),
-                ("2", "2 µs", "set_us_increment(2)"),
-                ("5", "5 µs", "set_us_increment(5)"),
-                ("x", "10 µs", "set_us_increment(10)"),
-                ("b", "20 µs", "set_us_increment(20)"),
-                ("l", "50 µs", "set_us_increment(50)"),
-                ("c", "100 µs", "set_us_increment(100)"),
-                ("d", "200 µs", "set_us_increment(200)"),
-                None,
-                ("Q", "<-- Back", "menu_backout"),
-            ],
-            title="[bold][u]Servo Increment (µs)[u][/bold]",
-        )
-
-        self.menus.add(
-            "angle_increment",
-            [
-                ("0", ".5°", "set_angle_increment(0.5)"),
-                ("1", "1°", "set_angle_increment(1.0)"),
-                ("2", "2°", "set_angle_increment(2.0)"),
-                ("5", "5°", "set_angle_increment(5.0)"),
-                ("x", "10°", "set_angle_increment(10.0)"),
-                ("b", "20°", "set_angle_increment(20.0)"),
-                ("c", "45°", "set_angle_increment(45.0)"),
-                ("d", "90°", "set_angle_increment(90.0)"),
-                None,
-                ("Q", "<-- Back", "menu_backout"),
-            ],
-            title="[bold][u]Servo Increment (∠)[u][/bold]",
-        )
-
-        self.menu = menu.Menu(
+        self.menu = Menu(
             key_style="bold blue on default",
             key_description_style="blue on default",
             menu_style="blue on default",
@@ -139,6 +88,9 @@ class MyApp(App):
             app=self,
         )
         self.menu.visible = False
+
+        # Load the menus
+        add_menus.add_menus(self.menu)
 
         # Build servo tables
         self.mappings = {}
@@ -219,92 +171,13 @@ class MyApp(App):
         if len(self.status_stack) == 0:
             self.status.regenerate_status_from_dict = True
 
-    # def push_menu(self) -> None:
-    #     """Save current menu and bindings"""
-    #     self.menu_stack.append((self.menu.menuname, self.bindings))
-
-    # async def pop_menu(self, pop_all=False) -> None:
-    #     """Recover last menu and bindings"""
-    #     if pop_all is True:
-    #         """pop all until at the bottom"""
-    #         while self.menu.menuname is not None:
-    #             (self.menu.menuname, self.bindings) = self.menu_stack.pop()
-    #     else:
-    #         (self.menu.menuname, self.bindings) = self.menu_stack.pop()
-    #     if self.menu.menuname is not None:
-    #         await self.menu.update_menu(self.menus.get_menu(self.menu.menuname))
-    #         await self.menu_bind(self.menus.get_menu(self.menu.menuname))
-    #     else:  # We're back to the main app
-    #         self.footer.regenerate()
-    #         self.menu.visible = False
-
-    # async def menu_bind(self, menuitems: menu.MenuItemList):
-    #     """Build new bindings and footer based on the Menu"""
-    #     self.bindings = Bindings()
-    #     await self.bind("ctrl+c", "quit", show=False)
-    #     await self.bind("escape", "menu_escape", show=False)
-    #     await self.bind("down", "menu_down", show=False)
-    #     await self.bind("up", "menu_up", show=False)
-    #     await self.bind("enter", "menu_enter", show=False)
-    #     for item in menuitems.items:
-    #         if item is None:
-    #             continue
-    #         (chr, description, callback) = item
-    #         await self.bind(chr.lower(), callback)
-    #     self.footer.regenerate()
-
     async def action_pop_status(self) -> None:
         """Back out and return to last status"""
         self.pop_status()
 
     async def action_main_menu(self) -> None:
         """Launch the main menu"""
-        # self.push_menu()
-        # await self.menu.update_menu(self.menus.get_menu("main"))
-        # await self.menu_bind(self.menus.get_menu("main"))
-        await self.menu.load_menu(self.menus.get_menu("main"))
-        self.menu.visible = True
-
-    async def action_us_increment_menu(self) -> None:
-        """Launch the increment menu"""
-        # if self.menu.visible is True:
-        #     self.push_menu()
-        # await self.menu.update_menu(self.menus.get_menu("us_increment"))
-        # await self.menu_bind(self.menus.get_menu("us_increment"))
-        await self.menu.load_menu(self.menus.get_menu("us_increment"))
-        self.menu.visible = True
-
-    async def action_angle_increment_menu(self) -> None:
-        """Launch the increment menu"""
-        # if self.menu.visible is True:
-        #     self.push_menu()
-        # await self.menu.update_menu(self.menus.get_menu("angle_increment"))
-        # await self.menu_bind(self.menus.get_menu("angle_increment"))
-        await self.menu.load_menu(
-            self.menus.get_menu("angle_increment"),
-        )
-        self.menu.visible = True
-
-    async def action_menu_backout(self) -> None:
-        """Back out to previous menu"""
-        await self.menu.pop_menu()
-
-    async def action_menu_escape(self) -> None:
-        await self.menu.pop_menu(pop_all=True)
-
-    async def action_menu_up(self) -> None:
-        self.menu.menu_up()
-
-    async def action_menu_down(self) -> None:
-        self.menu.menu_down()
-
-    async def action_menu_enter(self) -> None:
-        callback = self.menu.menu_choose()
-        if callback is not None:
-            # call the action directly
-            target, params = textual.actions.parse(callback)
-            action_target = getattr(self, f"action_{target}")
-            await action_target(*params)
+        await self.menu.load_menu("main")
 
     async def action_tbd(self) -> None:
         """Simulate a menu-action"""
@@ -322,4 +195,4 @@ class MyApp(App):
         self.body.key_press(key)
 
 
-MyApp.run(log="textual.log", title="Spotmicro Configuration")
+MyApp.run(log="textual.log", log_verbosity=3, title="Spotmicro Configuration")
