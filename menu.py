@@ -58,12 +58,11 @@ class MenuBook(object):
 
 class Menu(Widget):
 
-    # _menu_items: Reactive[List[menuitem]] = Reactive([])
     # Not sure why, but reactives need to be class variables and they work
     # fine even when shadowed
     index: Reactive[int] = Reactive(0)
     menu_style: Reactive[StyleType] = Reactive("none")
-    _menu_items: List[menuitem] = []
+    _menu_items: Reactive[List[menuitem]] = Reactive([])
 
     def __init__(
         self,
@@ -109,7 +108,7 @@ class Menu(Widget):
         # stack for storing cascading menus and bindings
         self.menu_stack = []
 
-        # Allow the applicaiton to access actions in this namespace
+        # Allow the application to access actions in this namespace
         self.app._action_targets.add("menu")
 
     def add_menu(
