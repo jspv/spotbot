@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "spotbot"
+version = "0.1.0"
+description = ""
+authors = ["jspv <jspvgithub@twinleaf.xyz>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+textual = "^0.1.18"
+rich = "^12.4.4"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+black = "^22.6.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
