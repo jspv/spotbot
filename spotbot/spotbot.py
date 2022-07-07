@@ -51,19 +51,28 @@ class MyApp(App):
         # Status line
         self.status = Status(style="yellow on default")
 
-        self.status.add_entry("mode", "[b]Mode", self.servo_mode)
+        self.status.add_entry(
+            "mode", "Mode", "∠", key_style="bold", value_style="bold blue"
+        )
 
         self.status.add_entry(
-            "angle_increment", "[b]∠ Increment", self.utils.get_angle_increment
+            "angle_increment",
+            "∠ Increment",
+            self.utils.get_angle_increment,
+            key_style="bold blue",
+            value_style="bold blue",
         )
 
         self.status.add_entry(
             "us_increment",
-            "[b]µs Increment",
+            "µs Increment",
             self.utils.get_us_increment,
-            # value_style="reverse",
         )
-        self.status.add_entry("time", "Time", self.utils.status_clock)
+        self.status.add_entry(
+            "time",
+            "Time",
+            self.utils.status_clock,
+        )
         self.status.layout_offset_y  # make room for footer
 
         # Footer
@@ -193,8 +202,24 @@ class MyApp(App):
     async def action_toggle_servo_mode(self) -> None:
         if self.servo_mode == "angle":
             self.servo_mode = "us"
+            self.status.update_entry("mode", "µs")
+            self.status.update_entry(
+                "angle_increment", key_style="none", value_style="none"
+            )
+            self.status.update_entry(
+                "us_increment", key_style="bold blue", value_style="bold blue"
+            )
         else:
             self.servo_mode = "angle"
+            self.status.update_entry("mode", "∠")
+            self.status.update_entry(
+                "us_increment", key_style="none", value_style="none"
+            )
+            self.status.update_entry(
+                "angle_increment", key_style="bold blue", value_style="bold blue"
+            )
+        self.status.refresh()
+        await self.menu.pop_menu(pop_all=True)
 
 
 MyApp.run(log="textual.log", log_verbosity=3, title="Spotmicro Configuration")

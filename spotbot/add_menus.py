@@ -8,7 +8,7 @@ def add_menus(menuwidget: Menu) -> None:
             ("C", "Config Servo", "tbd"),
             ("I", "Change increment µs", "menu.load_menu('us_increment')"),
             ("N", "Change increment ∠", "menu.load_menu('angle_increment')"),
-            ("M", "Swich Mode µs/∠", "switch_servo_mode"),
+            ("M", "Swich Mode µs/∠", "toggle_servo_mode"),
             None,
             ("L", "Load Config", "tbd"),
             ("S", "Save Config", "tbd"),

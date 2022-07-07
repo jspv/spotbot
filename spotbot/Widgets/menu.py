@@ -240,9 +240,8 @@ class Menu(Widget):
             ) = self.menu_stack.pop()
 
         self.skip_rows = 0
-        self.index = 0
-        self._bind_current_menu()
         self._resize_menu()
+        self.index = 0
 
         if self.menuname is None:
             self.visible = False
