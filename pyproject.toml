@@ -8,6 +8,9 @@ authors = ["jspv <jspvgithub@twinleaf.xyz>"]
 python = "^3.9"
 textual = "^0.1.18"
 rich = "^12.4.4"
+schema = "^0.7.5"
+PyYAML = "^6.0"
+pyserial = "^3.5"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

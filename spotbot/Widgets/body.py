@@ -81,6 +81,8 @@ class Body(Widget):
     def key_press(self, key: str) -> None:
         if key != self.selection:
             self.selection = key
+        else:
+            self.selection = ""
 
     def get_selection(self) -> str:
         return self.selection

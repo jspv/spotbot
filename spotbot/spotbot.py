@@ -1,15 +1,26 @@
 from textual import events
 from textual.app import App
 from textual.widgets import Header, Placeholder
+from textual.binding import Bindings
 from Widgets.footer import Footer
 from Widgets.status import Status
 from Widgets.menu import Menu
 from Widgets.body import Body
+import servo
+import add_menus
+import file_utils
 from utils import Utils
 
-# import menu
-import add_menus
-from textual.binding import Bindings
+
+import sys
+from os.path import exists
+from rich import print
+import rich.traceback
+import argparse
+
+
+def errprint(*a):
+    print(*a, file=sys.stderr)
 
 
 class MyApp(App):
@@ -222,4 +233,55 @@ class MyApp(App):
         await self.menu.pop_menu(pop_all=True)
 
 
-MyApp.run(log="textual.log", log_verbosity=3, title="Spotmicro Configuration")
+if __name__ == "__main__":
+
+    DEFAULT_SERIALCONFIG = "serial_config.yml"
+    DEFAULT_SERVOCONFIG = "servo_config.yml"
+
+    # smart errors
+    rich.traceback.install(show_locals=True)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--serialconfig",
+        help="Configuration file for serial access to servo controller, if "
+        + "'{}' exists it will be loaded automatically ".format(DEFAULT_SERIALCONFIG)
+        + "even if this parameter is not set",
+        default=DEFAULT_SERIALCONFIG,
+    )
+
+    parser.add_argument(
+        "--servoconfig",
+        help="Servo Configuration File if "
+        + "'{} exists it will be loaded automatically ".format(DEFAULT_SERVOCONFIG)
+        + "even if this parameter is not set",
+        default=DEFAULT_SERVOCONFIG,
+    )
+
+    parser.add_argument(
+        "-t",
+        "--testservo",
+        help=(
+            "testing - don't connect to server controller, serial settings are"
+            " ignored and serial activity is stubbed out."
+        ),
+        action="store_true",
+    )
+
+    args = parser.parse_args()
+
+    # if no file is specified and the default file doesn't exist, set to None which
+    # will tell the loader to use the system defaults.
+    if args.serialconfig == DEFAULT_SERIALCONFIG and not exists(DEFAULT_SERIALCONFIG):
+        args.serialconfig = None
+
+    serialconfig = file_utils.load_serial_configuration_file(args.serialconfig)
+
+    # load configuration file
+    config = file_utils.load_configuration_file(args.servoconfig)
+
+    # RPI Zero W is on /dev/ttyS0
+    if args.testservo is False:
+        servo = servo.ServoController(**serialconfig)
+
+    MyApp.run(log="textual.log", log_verbosity=3, title="Spotmicro Configuration")
