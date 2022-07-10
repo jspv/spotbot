@@ -1,6 +1,7 @@
 import yaml
 from schema import Schema, SchemaError, Or, And, Regex, Optional
 import serial
+import sys
 
 
 def load_configuration_file(
@@ -52,7 +53,7 @@ def load_configuration_file(
     try:
         config = config_schema.validate(config)
     except SchemaError as se:
-        raise se
+        sys.exit(f"{configfile}: {se.code}")
 
     return config
 
@@ -95,6 +96,6 @@ def load_servo_configuration_file(configfile):
     try:
         config_schema.validate(config)
     except SchemaError as se:
-        raise se
+        sys.exit(f"{configfile}: {se.code}")
 
     return config

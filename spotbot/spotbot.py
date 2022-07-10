@@ -238,9 +238,6 @@ def main():
     DEFAULT_CONFIG = "config.yml"
     DEFAULT_SERVOCONFIG = "servo_config.yml"
 
-    # smart errors
-    rich.traceback.install(show_locals=True)
-
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--config",
@@ -268,7 +265,14 @@ def main():
         action="store_true",
     )
 
+    parser.add_argument(
+        "-v", "--verbose", help="Increase verbosity", action="store_true"
+    )
+
     args = parser.parse_args()
+
+    if args.verbose is True:# smart errors
+        rich.traceback.install(show_locals=True)
 
     # if no file is specified and the default file doesn't exist, set to None which
     # will tell the loader to use the system defaults.
