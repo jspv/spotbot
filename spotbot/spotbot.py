@@ -1,5 +1,5 @@
 from textual import events
-from textual.app import App
+from .App import App
 from textual.widgets import Header, Placeholder
 from textual.binding import Bindings
 from .Widgets.footer import Footer
@@ -106,8 +106,8 @@ class MyApp(App):
         add_menus.add_menus(self.menu)
 
         # Build servo tables
-        self.servo_status = {}
-        self.servo_status["left"] = [
+        self.servo_data = {}
+        self.servo_data["left"] = [
             ("a", "Front-Right-Bottom", "S0", "1500", "90.0"),
             ("b", "Front-Right-Bottom", "S0", "1500", "90.0"),
             ("c", "Front-Right-Bottom", "S0", "1500", "90.0"),
@@ -117,7 +117,7 @@ class MyApp(App):
             ("f", "Front-Right-Bottom", "S0", "1500", "90.0"),
         ]
 
-        self.servo_status["right"] = [
+        self.servo_data["right"] = [
             ("g", "Front-Right-Bottom", "S0", "1500", "90.0"),
             ("h", "Front-Right-Bottom", "S0", "1500", "90.0"),
             ("i", "Front-Right-Bottom", "S0", "1500", "90.0"),
@@ -128,11 +128,11 @@ class MyApp(App):
         ]
 
         # update the tables
-        self.body.update(self.servo_status)
+        self.body.update(self.servo_data)
 
         # Bindings for servo hot-keys
-        for table in self.servo_status.keys():
-            for row in self.servo_status[table]:
+        for table in self.servo_data.keys():
+            for row in self.servo_data[table]:
                 if row is None:
                     continue
                 (key, desc, servo, us, angle) = row
@@ -208,7 +208,23 @@ class MyApp(App):
         await self.menu.pop_menu(pop_all=True)
 
     async def action_servo_key(self, key: str) -> None:
+        """Process servo hotkey
+
+        Parameters
+        ----------
+        key : str
+            Hotkey pressed,
+        """
         self.body.key_press(key)
+        if self.body.selection == "":
+            self.unbind("up")
+            self.unbind("down")
+            self.footer.regenerate()
+        else:
+            symbol = "∠" if self.servo_mode == "angle" else "µs"
+            await self.bind("up", "servo_increment", f"Increment {symbol}")
+            await self.bind("down", "servo_decrement", f"Decrement {symbol}")
+            self.footer.regenerate()
 
     async def action_toggle_servo_mode(self) -> None:
         if self.servo_mode == "angle":
@@ -229,8 +245,22 @@ class MyApp(App):
             self.status.update_entry(
                 "angle_increment", key_style="bold blue", value_style="bold blue"
             )
+
         self.status.refresh()
         await self.menu.pop_menu(pop_all=True)
+
+        # Refresh bindings if needed
+        if self.body.selection != "":
+            symbol = "∠" if self.servo_mode == "angle" else "µs"
+            await self.bind("up", "servo_increment", f"Increment {symbol}")
+            await self.bind("down", "servo_decrement", f"Decrement {symbol}")
+            self.footer.regenerate()
+
+    async def action_servo_increment(self) -> None:
+        pass
+
+    async def action_servo_decrement(self) -> None:
+        pass
 
 
 def main():
@@ -271,7 +301,7 @@ def main():
 
     args = parser.parse_args()
 
-    if args.verbose is True:# smart errors
+    if args.verbose is True:  # smart errors
         rich.traceback.install(show_locals=True)
 
     # if no file is specified and the default file doesn't exist, set to None which
@@ -292,3 +322,7 @@ def main():
         servo = servo.ServoController(**config["serial_settings"])
 
     MyApp.run(log="textual.log", log_verbosity=3, title="Spotmicro Configuration")
+
+
+if __name__ == "__main__":
+    main()
