@@ -2,16 +2,16 @@ from textual import events
 from textual.app import App
 from textual.widgets import Header, Placeholder
 from textual.binding import Bindings
-from Widgets.footer import Footer
-from Widgets.status import Status
-from Widgets.menu import Menu
-from Widgets.body import Body
-import servo
-import add_menus
-import file_utils
-from utils import Utils
+from .Widgets.footer import Footer
+from .Widgets.status import Status
+from .Widgets.menu import Menu
+from .Widgets.body import Body
 
+from . import add_menus
+from . import file_utils
+from .utils import Utils
 
+import importlib
 import sys
 from os.path import exists
 from rich import print
@@ -233,9 +233,9 @@ class MyApp(App):
         await self.menu.pop_menu(pop_all=True)
 
 
-if __name__ == "__main__":
+def main():
 
-    DEFAULT_SERIALCONFIG = "serial_config.yml"
+    DEFAULT_CONFIG = "config.yml"
     DEFAULT_SERVOCONFIG = "servo_config.yml"
 
     # smart errors
@@ -243,11 +243,11 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--serialconfig",
+        "--config",
         help="Configuration file for serial access to servo controller, if "
-        + "'{}' exists it will be loaded automatically ".format(DEFAULT_SERIALCONFIG)
+        + "'{}' exists it will be loaded automatically ".format(DEFAULT_CONFIG)
         + "even if this parameter is not set",
-        default=DEFAULT_SERIALCONFIG,
+        default=DEFAULT_CONFIG,
     )
 
     parser.add_argument(
@@ -272,16 +272,19 @@ if __name__ == "__main__":
 
     # if no file is specified and the default file doesn't exist, set to None which
     # will tell the loader to use the system defaults.
-    if args.serialconfig == DEFAULT_SERIALCONFIG and not exists(DEFAULT_SERIALCONFIG):
-        args.serialconfig = None
+    if args.config == DEFAULT_CONFIG and not exists(DEFAULT_CONFIG):
+        args.config = None
 
-    serialconfig = file_utils.load_serial_configuration_file(args.serialconfig)
+    config = file_utils.load_configuration_file(args.config)
+    servo = importlib.import_module(
+        ".Servo.{}".format(config["servoboard"]), package="spotbot"
+    )
 
     # load configuration file
-    config = file_utils.load_configuration_file(args.servoconfig)
+    servo_config = file_utils.load_servo_configuration_file(args.servoconfig)
 
     # RPI Zero W is on /dev/ttyS0
     if args.testservo is False:
-        servo = servo.ServoController(**serialconfig)
+        servo = servo.ServoController(**config["serial_settings"])
 
     MyApp.run(log="textual.log", log_verbosity=3, title="Spotmicro Configuration")

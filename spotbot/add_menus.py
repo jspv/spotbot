@@ -1,4 +1,4 @@
-from Widgets.menu import Menu
+from .Widgets.menu import Menu
 
 
 def add_menus(menuwidget: Menu) -> None:

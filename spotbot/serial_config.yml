@@ -1,3 +1,0 @@
-tty: "/dev/ttyS0"
-baudrate: 115200
-timeout: null

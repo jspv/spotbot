@@ -3,7 +3,7 @@ from schema import Schema, SchemaError, Or, And, Regex, Optional
 import serial
 
 
-def load_serial_configuration_file(
+def load_configuration_file(
     configfile,
     defaults={
         "tty": "/dev/ttyS0",
@@ -18,31 +18,35 @@ def load_serial_configuration_file(
     if configfile is None:
         return defaults
 
-    config = yaml.safe_load(open(configfile))
+    with open(configfile) as fd:
+        config = yaml.safe_load(fd)
 
     config_schema = Schema(
         {
-            Optional("tty", default=defaults["tty"]): str,
-            Optional("baudrate", default=defaults["baudrate"]): Or(
-                10,
-                300,
-                600,
-                1200,
-                2400,
-                4800,
-                9600,
-                14400,
-                19200,
-                38400,
-                57600,
-                115200,
-                128000,
-                256000,
-            ),
-            Optional("parity", default=defaults["parity"]): Or("N", "E", "O"),
-            Optional("stopbits", default=defaults["stopbits"]): Or(1, 2),
-            Optional("bytesize", default=defaults["bytesize"]): Or(7, 8),
-            Optional("timeout", default=defaults["timeout"]): Or(float, None),
+            "servoboard": str,
+            "serial_settings": {
+                Optional("tty", default=defaults["tty"]): str,
+                Optional("baudrate", default=defaults["baudrate"]): Or(
+                    10,
+                    300,
+                    600,
+                    1200,
+                    2400,
+                    4800,
+                    9600,
+                    14400,
+                    19200,
+                    38400,
+                    57600,
+                    115200,
+                    128000,
+                    256000,
+                ),
+                Optional("parity", default=defaults["parity"]): Or("N", "E", "O"),
+                Optional("stopbits", default=defaults["stopbits"]): Or(1, 2),
+                Optional("bytesize", default=defaults["bytesize"]): Or(7, 8),
+                Optional("timeout", default=defaults["timeout"]): Or(float, None),
+            },
         }
     )
     try:
@@ -53,7 +57,7 @@ def load_serial_configuration_file(
     return config
 
 
-def load_configuration_file(configfile):
+def load_servo_configuration_file(configfile):
     config_schema = Schema(
         [
             {
@@ -85,7 +89,8 @@ def load_configuration_file(configfile):
         ]
     )
 
-    config = yaml.safe_load(open(configfile))
+    with open(configfile) as fd:
+        config = yaml.safe_load(fd)
 
     try:
         config_schema.validate(config)

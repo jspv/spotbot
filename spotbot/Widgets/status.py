@@ -1,4 +1,3 @@
-from multiprocessing.sharedctypes import Value
 from textual import events
 from textual.widget import Widget
 from textual.reactive import Reactive
