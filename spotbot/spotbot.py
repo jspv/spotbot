@@ -6,6 +6,7 @@ from .Widgets.footer import Footer
 from .Widgets.status import Status
 from .Widgets.menu import Menu
 from .Widgets.body import Body
+from rich.text import Text
 
 from . import add_menus
 from . import file_utils
@@ -105,38 +106,38 @@ class MyApp(App):
         # Load the menus
         add_menus.add_menus(self.menu)
 
-        # Build servo tables
+        # # Build servo tables
         self.servo_data = {}
-        self.servo_data["left"] = [
-            ("a", "Front-Right-Bottom", "S0", "1500", "90.0"),
-            ("b", "Front-Right-Bottom", "S0", "1500", "90.0"),
-            ("c", "Front-Right-Bottom", "S0", "1500", "90.0"),
-            None,
-            ("d", "Front-Right-Bottom", "S0", "1500", "90.0"),
-            ("e", "Front-Right-Bottom", "S0", "1500", "90.0"),
-            ("f", "Front-Right-Bottom", "S0", "1500", "90.0"),
-        ]
 
-        self.servo_data["right"] = [
-            ("g", "Front-Right-Bottom", "S0", "1500", "90.0"),
-            ("h", "Front-Right-Bottom", "S0", "1500", "90.0"),
-            ("i", "Front-Right-Bottom", "S0", "1500", "90.0"),
-            None,
-            ("j", "Front-Right-Bottom", "S0", "1500", "90.0"),
-            ("k", "Front-Right-Bottom", "S0", "1500", "90.0"),
-            ("l", "Front-Right-Bottom", "S0", "1500", "90.0"),
+        # load the current servo data
+        for servoletter in [chr(i) for i in range(ord("A"), ord("R"))]:
+            if servoletter in self.servo_config:
+                servo = self.servo_config[servoletter]
+                self.servo_data[servoletter] = (
+                    servoletter,
+                    servo["description"],
+                    servo["designation"],
+                    str(Utils.a_to_us(servo, servo["home_angle"])),
+                    str(servo["home_angle"]),
+                )
+
+        self.body.servo_layout = [
+            ["A", "B", "C", None, "D", "E", "F"],
+            ["G", "H", "I", None, "J", "K", "L"],
         ]
 
         # update the tables
         self.body.update(self.servo_data)
 
         # Bindings for servo hot-keys
-        for table in self.servo_data.keys():
-            for row in self.servo_data[table]:
+        for table in self.body.servo_layout:
+            for row in table:
                 if row is None:
                     continue
-                (key, desc, servo, us, angle) = row
-                await self.bind(key, f"servo_key('{key}')", "", show=False)
+                await self.bind(row, f"servo_key('{row}')", "", show=False)
+                await self.bind(
+                    row.lower(), f"servo_key('{row}')", "", show=False
+                )
 
         # Layout the weidgets
         await self.view.dock(self.header, edge="top")

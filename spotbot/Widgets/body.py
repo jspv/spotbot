@@ -36,6 +36,9 @@ class Body(Widget):
         # Create dict to hold the tables
         self.servo_table = {}
 
+        # Layout of servers - populated when servo config loaded
+        self.servo_layout = []
+
     # Create the initial mappings
     mappings: Reactive[dict] = Reactive({})
 
@@ -96,15 +99,18 @@ class Body(Widget):
 
     def render(self) -> Panel:
 
-        self.servo_table["left"] = self._create_servo_table()
-        self.servo_table["right"] = self._create_servo_table()
+        self.servo_table = []
 
-        for table in ["left", "right"]:
-            for row in self.mappings[table]:
+        # Each entry in servo_layout represents a table of rows in the order to print
+        for table in range(0, len(self.servo_layout)):
+            # create a new table
+            self.servo_table.append(self._create_servo_table())
+            # for each row, fill in the values
+            for row in self.servo_layout[table]:
                 if row is None:
                     self.servo_table[table].add_row("", "", "", "", "")
                     continue
-                (key, desc, servo, us, angle) = row
+                (key, desc, servo, us, angle) = self.mappings[row]
                 column_style = "reverse" if self.selection == key else "none"
                 self.servo_table[table].add_row(
                     "[b]({})[/b]".format(key.upper()),
@@ -115,7 +121,7 @@ class Body(Widget):
                     style=column_style,
                 )
 
-        self.layout["left"].update(Align(self.servo_table["left"], align="center"))
-        self.layout["right"].update(Align(self.servo_table["right"], align="center"))
+        self.layout["left"].update(Align(self.servo_table[0], align="center"))
+        self.layout["right"].update(Align(self.servo_table[1], align="center"))
 
         return Panel(self.layout)

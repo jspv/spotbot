@@ -60,35 +60,31 @@ def load_configuration_file(
 
 def load_servo_configuration_file(configfile):
     config_schema = Schema(
-        [
-            {
-                And(
-                    str, Regex(r"^[A-R]$"), error="lettermap needs to be A through R"
-                ): {
-                    "position": And(
-                        int,
-                        lambda n: 0 <= n <= 17,
-                        error="position needs to be between 0 and 17",
-                    ),
-                    "designation": And(
-                        str,
-                        lambda n: len(n) < 5,
-                        error="designation too long <5 characters",
-                    ),
-                    "description": And(
-                        str,
-                        lambda n: len(n) < 30,
-                        error="description too long, <30 characters",
-                    ),
-                    "high_us": And(int, lambda n: 300 <= n <= 3000),
-                    "low_us": And(int, lambda n: 300 <= n <= 3000),
-                    "high_pos": Or("high", "low"),
-                    "high_angle": And(float, lambda n: 0 <= n <= 180),
-                    "low_angle": And(float, lambda n: 0 <= n <= 180),
-                    "home_angle": And(float, lambda n: 0 <= n <= 180),
-                }
+        {
+            And(str, Regex(r"^[A-R]$"), error="lettermap needs to be A through R"): {
+                "position": And(
+                    int,
+                    lambda n: 0 <= n <= 17,
+                    error="position needs to be between 0 and 17",
+                ),
+                "designation": And(
+                    str,
+                    lambda n: len(n) < 5,
+                    error="designation too long <5 characters",
+                ),
+                "description": And(
+                    str,
+                    lambda n: len(n) < 30,
+                    error="description too long, <30 characters",
+                ),
+                "high_us": And(int, lambda n: 300 <= n <= 3000),
+                "low_us": And(int, lambda n: 300 <= n <= 3000),
+                "high_pos": Or("high", "low"),
+                "high_angle": And(float, lambda n: 0 <= n <= 180),
+                "low_angle": And(float, lambda n: 0 <= n <= 180),
+                "home_angle": And(float, lambda n: 0 <= n <= 180),
             }
-        ]
+        }
     )
 
     with open(configfile) as fd:

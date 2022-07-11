@@ -24,5 +24,8 @@ class Utils(object):
         """Get current µs incrment as a str"""
         return "{:>5}".format(str(self.parent.angle_increment))
 
+    def a_to_us(servo: dict, angle: float) -> int:
+        return 1502
+
     def status_clock(self) -> str:
         return f"{datetime.now().time().strftime('%X')}"

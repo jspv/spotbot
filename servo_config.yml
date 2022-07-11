@@ -1,5 +1,5 @@
 
-- A:
+A:
     position: 4
     description: Front-LEFT-Top
     designation: S4
@@ -9,7 +9,7 @@
     high_angle: 180.0
     low_angle: 0.0
     home_angle: 90.0
-- B:
+B:
     position: 5
     description: Front-LEFT-Middle
     designation: S5
@@ -19,7 +19,7 @@
     high_angle: 180.0
     low_angle: 20.0
     home_angle: 120.0
-- C:
+C:
     position: 6
     description: Front-LEFT-Bottom
     designation: S6
@@ -29,7 +29,7 @@
     high_angle: 0.0
     low_angle: 42.05
     home_angle: 100.0
-- G:
+G:
     position: 0
     description: Front-RIGHT-Top
     designation: S0
@@ -39,7 +39,7 @@
     high_angle: 180.0
     low_angle: 0.0
     home_angle: 90.0
-- H:
+H:
     position: 1
     description: Front-RIGHT-Middle
     designation: S1
@@ -49,7 +49,7 @@
     high_angle: 180.0
     low_angle: 20.0
     home_angle: 120.0
-- I:
+I:
     position: 2
     description: Front-RIGHT-Bottom
     designation: S2
@@ -59,17 +59,17 @@
     high_angle: 0.0
     low_angle: 42.05
     home_angle: 100.0
-- J:
+D:
     position: 12
     description: Rear-LEFT-Top
-    designation: (S0)
+    designation: S0
     high_us: 1936
     low_us: 592
     high_pos: high
     high_angle: 180.0
     low_angle: 0.0
     home_angle: 90.0
-- E:
+E:
     position: 13
     description: Rear-LEFT-Middle
     designation: S1
@@ -79,7 +79,7 @@
     high_angle: 180.0
     low_angle: 20.0
     home_angle: 120.0
-- F:
+F:
     position: 14
     description: Rear-LEFT-Bottom
     designation: S2
@@ -89,17 +89,17 @@
     high_angle: 0.0
     low_angle: 42.05
     home_angle: 100.0
-- J:
+J:
     position: 8
     description: Rear-RIGHT-Top
-    designation: (S0)
+    designation: S0
     high_us: 1936
     low_us: 592
     high_pos: high
     high_angle: 180.0
     low_angle: 0.0
     home_angle: 90.0
-- K:
+K:
     position: 9
     description: Rear-RIGHT-Middle
     designation: S1
@@ -109,7 +109,7 @@
     high_angle: 180.0
     low_angle: 20.0
     home_angle: 120.0
-- L:
+L:
     position: 10
     description: Rear-RIGHT-Bottom
     designation: S2
