@@ -317,11 +317,20 @@ def main():
     # load configuration file
     servo_config = file_utils.load_servo_configuration_file(args.servoconfig)
 
-    # RPI Zero W is on /dev/ttyS0
-    if args.testservo is False:
-        servo = servo.ServoController(**config["serial_settings"])
+    # Connect to the servo board
+    servo_ctl = (
+        servo.ServoController(**config["serial_settings"])
+        if args.testservo is False
+        else None
+    )
 
-    MyApp.run(log="textual.log", log_verbosity=3, title="Spotmicro Configuration")
+    MyApp.run(
+        log="textual.log",
+        log_verbosity=3,
+        title="Spotmicro Configuration",
+        servo_ctl=servo_ctl,
+        servo_config=servo_config,
+    )
 
 
 if __name__ == "__main__":

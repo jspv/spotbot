@@ -3,7 +3,9 @@ from typing import Any
 
 
 class App(textual.app.App):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, servo_ctl, servo_config, **kwargs):
+        self.servo_ctl = servo_ctl
+        self.servo_config = servo_config
         super().__init__(*args, **kwargs)
 
     def unbind(self, key: str) -> None:
@@ -21,6 +23,7 @@ class App(textual.app.App):
     async def dispatch_action(
         self, namespace: object, action_name: str, params: Any
     ) -> None:
+        """Override dispach action to raise excption if missing action method"""
         # Raise exception of the method can't be found
         method_name = f"action_{action_name}"
         if getattr(namespace, method_name, None) is None:
