@@ -48,6 +48,10 @@ def load_configuration_file(
                 Optional("bytesize", default=defaults["bytesize"]): Or(7, 8),
                 Optional("timeout", default=defaults["timeout"]): Or(float, None),
             },
+            Optional("relay_settings"): {
+                "gpio": int,
+                "active_high": bool,
+            },
         }
     )
     try:

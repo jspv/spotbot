@@ -12,6 +12,9 @@ from . import add_menus
 from . import file_utils
 from .utils import Utils
 
+from . import GPIO as gpio
+import atexit
+
 import importlib
 import sys
 from os.path import exists
@@ -40,6 +43,8 @@ class MyApp(App):
             "confirm_y_n('[bold]Quit?[/bold] Y/N', 'quit', 'pop_status', '[Quit]')",
             "Quit",
         )
+        if self.relay is not None:
+            await self.bind("\\", "toggle_relay", "Servo Power")
 
         # access convenience utilites
         self.utils = Utils(self)
@@ -80,6 +85,12 @@ class MyApp(App):
             "µs Increment",
             self.utils.get_us_increment,
         )
+
+        if self.relay is not None:
+            self.status.add_entry(
+                "relay_status", "Servo Power", self.utils.is_relay_on_off
+            )
+
         self.status.add_entry(
             "time",
             "Time",
@@ -135,9 +146,7 @@ class MyApp(App):
                 if row is None:
                     continue
                 await self.bind(row, f"servo_key('{row}')", "", show=False)
-                await self.bind(
-                    row.lower(), f"servo_key('{row}')", "", show=False
-                )
+                await self.bind(row.lower(), f"servo_key('{row}')", "", show=False)
 
         # Layout the weidgets
         await self.view.dock(self.header, edge="top")
@@ -263,6 +272,9 @@ class MyApp(App):
     async def action_servo_decrement(self) -> None:
         pass
 
+    async def action_toggle_relay(self) -> None:
+        self.relay.toggle()
+
 
 def main():
 
@@ -315,6 +327,14 @@ def main():
         ".Servo.{}".format(config["servoboard"]), package="spotbot"
     )
 
+    if "relay_settings" in config:
+        relay = gpio.relay(
+            config["relay_settings"]["gpio"], config["relay_settings"]["active_high"]
+        )
+        atexit.register(relay.close)
+    else:
+        relay = None
+
     # load configuration file
     servo_config = file_utils.load_servo_configuration_file(args.servoconfig)
 
@@ -331,6 +351,7 @@ def main():
         title="Spotmicro Configuration",
         servo_ctl=servo_ctl,
         servo_config=servo_config,
+        relay=relay,
     )
 
 

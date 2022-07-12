@@ -3,3 +3,7 @@ serial_settings:
   tty: "/dev/ttyS0"
   baudrate: 115200
   timeout: null
+# if not using a relay, comment out the following
+relay_settings:
+  gpio: 27
+  active_high: True
