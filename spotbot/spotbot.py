@@ -123,14 +123,7 @@ class MyApp(App):
         # load the current servo data
         for servoletter in [chr(i) for i in range(ord("A"), ord("R"))]:
             if servoletter in self.servo_config:
-                servo = self.servo_config[servoletter]
-                self.servo_data[servoletter] = (
-                    servoletter,
-                    servo["description"],
-                    servo["designation"],
-                    str(Utils.a_to_us(servo, servo["home_angle"])),
-                    str(servo["home_angle"]),
-                )
+                self.utils.refresh_servo_data(servoletter)
 
         self.body.servo_layout = [
             ["A", "B", "C", None, "D", "E", "F"],
@@ -229,11 +222,13 @@ class MyApp(App):
         if self.body.selection == "":
             self.unbind("up")
             self.unbind("down")
+            self.unbind("0")
             self.footer.regenerate()
         else:
             symbol = "∠" if self.servo_mode == "angle" else "µs"
             await self.bind("up", "servo_increment", f"Increment {symbol}")
             await self.bind("down", "servo_decrement", f"Decrement {symbol}")
+            await self.bind("0", "servo_off", "Servo Off")
             self.footer.regenerate()
 
     async def action_toggle_servo_mode(self) -> None:
@@ -267,10 +262,26 @@ class MyApp(App):
             self.footer.regenerate()
 
     async def action_servo_increment(self) -> None:
-        pass
+        if self.servo_mode == "us":
+            servoletter = self.body.selection
+            channel = self.servo_config[servoletter]["position"]
+            new = self.servo_ctl.get_position_us(channel) + self.us_increment
+            self.servo_ctl.set_target_us(channel, new)
+            self.utils.refresh_servo_data(servoletter)
 
     async def action_servo_decrement(self) -> None:
-        pass
+        if self.servo_mode == "us":
+            servoletter = self.body.selection
+            channel = self.servo_config[servoletter]["position"]
+            new = self.servo_ctl.get_position_us(channel) - self.us_increment
+            self.servo_ctl.set_target_us(channel, new)
+            self.utils.refresh_servo_data(servoletter)
+
+    async def action_servo_off(self) -> None:
+        servoletter = self.body.selection
+        channel = self.servo_config[servoletter]["position"]
+        self.servo_ctl.stop_channel(channel)
+        self.utils.refresh_servo_data(servoletter)
 
     async def action_toggle_relay(self) -> None:
         self.relay.toggle()

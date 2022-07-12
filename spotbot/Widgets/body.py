@@ -39,7 +39,7 @@ class Body(Widget):
         # Layout of servers - populated when servo config loaded
         self.servo_layout = []
 
-    # Create the initial mappings
+    # Create the initial mappings which contain the data for the tables
     mappings: Reactive[dict] = Reactive({})
 
     # Store selected servo
@@ -74,7 +74,7 @@ class Body(Widget):
         )
         table.add_column(Text("S#", justify="center"), width=3, justify="right")
         table.add_column(
-            Text("µs", justify="center"), width=4, style="none", justify="right"
+            Text("µs", justify="center"), width=6, style="none", justify="right"
         )
         table.add_column(
             Text("∠", justify="center"), width=5, style="none", justify="right"

@@ -11,7 +11,7 @@
             "cwd": "${workspaceFolder}",
             "module": "spotbot.spotbot",
             "args": [
-                "-t",
+                // "-t",
                 "-v"
             ],
             "console": "integratedTerminal",
