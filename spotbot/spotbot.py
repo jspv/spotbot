@@ -44,7 +44,14 @@ class MyApp(App):
             "Quit",
         )
         if self.relay is not None:
-            await self.bind("\\", "toggle_relay", "Servo Power")
+            await self.bind(
+                "\\",
+                (
+                    "confirm_y_n('[b]Enable Servos?[/b] Y/N', 'toggle_relay', "
+                    "'pop_status', '[Enable Servos]')"
+                ),
+                "Enable Servos",
+            )
 
         # access convenience utilites
         self.utils = Utils(self)
@@ -285,6 +292,20 @@ class MyApp(App):
 
     async def action_toggle_relay(self) -> None:
         self.relay.toggle()
+        # if relay is currently on, then we just came out of modal dialog
+        if self.relay.is_active() is True:
+            self.pop_status()
+            await self.bind("\\", "toggle_relay", "Disable Servos")
+        else:
+            await self.bind(
+                "\\",
+                (
+                    "confirm_y_n('[b]Enable Servos?[/b] Y/N', 'toggle_relay', "
+                    "'pop_status', '[Enable Servos]')"
+                ),
+                "Enable Servos",
+            )
+            self.footer.regenerate()
 
 
 def main():
