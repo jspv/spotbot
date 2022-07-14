@@ -1,7 +1,7 @@
 import RPi.GPIO as GPIO
 
 
-class relay(object):
+class Relay(object):
     def __init__(self, gpio: int, active_high: bool) -> None:
         self.gpio = gpio
         self.active_high = active_high

@@ -43,6 +43,15 @@ class MyApp(App):
             "confirm_y_n('[bold]Quit?[/bold] Y/N', 'quit', 'pop_status', '[Quit]')",
             "Quit",
         )
+        await self.bind(
+            "=",
+            (
+                "confirm_y_n('[b]Set servos to home position[/b] Y/N', "
+                "'set_servos_home','pop_status', '[Home]')"
+            ),
+            "Home Servos",
+        )
+
         if self.relay is not None:
             await self.bind(
                 "\\",
@@ -56,7 +65,7 @@ class MyApp(App):
         # access convenience utilites
         self.utils = Utils(self)
 
-        # initalize
+        # initalize defaults
         self.servo_mode = "angle"
         # Servo adjustment increment in µs and ∠
         self.us_increment = 1500
@@ -105,13 +114,18 @@ class MyApp(App):
         )
         self.status.layout_offset_y  # make room for footer
 
+        #
         # Footer
+        #
         self.footer = Footer(
             key_style="bold blue on default",
             key_hover_style="bold blue reverse",
             key_description_style="gray on default",
         )
 
+        #
+        # Menu
+        #
         self.menu = Menu(
             key_style="bold blue on default",
             key_description_style="blue on default",
@@ -124,21 +138,26 @@ class MyApp(App):
         # Load the menus
         add_menus.add_menus(self.menu)
 
-        # # Build servo tables
+        # # Build servo data
         self.servo_data = {}
+
+        #
+        # Main Body
+        #
 
         # load the current servo data
         for servoletter in [chr(i) for i in range(ord("A"), ord("R"))]:
-            if servoletter in self.servo_config:
+            if servoletter in self.servos.data:
                 self.utils.refresh_servo_data(servoletter)
 
+        # describe the display table layout
         self.body.servo_layout = [
             ["A", "B", "C", None, "D", "E", "F"],
             ["G", "H", "I", None, "J", "K", "L"],
         ]
 
-        # update the tables
-        self.body.update(self.servo_data)
+        # send the data to the Widget
+        self.body.update(self.servos.data)
 
         # Bindings for servo hot-keys
         for table in self.body.servo_layout:
@@ -148,7 +167,7 @@ class MyApp(App):
                 await self.bind(row, f"servo_key('{row}')", "", show=False)
                 await self.bind(row.lower(), f"servo_key('{row}')", "", show=False)
 
-        # Layout the weidgets
+        # Layout the widgets
         await self.view.dock(self.header, edge="top")
         await self.view.dock(self.footer, size=1, edge="bottom", z=1)
         await self.view.dock(self.status, size=3, edge="bottom", z=1)
@@ -156,6 +175,30 @@ class MyApp(App):
         await self.view.dock(self.bodypadding, size=4, edge="bottom")
         await self.view.dock(self.body, edge="top")
 
+    #
+    # Status bar push and pop
+    #
+    def push_status(self) -> None:
+        """Save current status and bindings"""
+        self.status_stack.append(
+            (self.status.message, self.bindings, self.status.title)
+        )
+
+    def pop_status(self) -> None:
+        """Recover last status and bindings"""
+        if len(self.status_stack) > 0:
+            (
+                self.status.message,
+                self.bindings,
+                self.status.title,
+            ) = self.status_stack.pop()
+            self.footer.regenerate()  # Regenerate footter
+        if len(self.status_stack) == 0:
+            self.status.regenerate_status_from_dict = True
+
+    #
+    # Actions
+    #
     async def action_confirm_y_n(
         self, message: str, confirm_action: str, noconfirm_action: str, title: str = ""
     ) -> None:
@@ -176,24 +219,6 @@ class MyApp(App):
 
         # Refresh footer
         self.footer.regenerate()
-
-    def push_status(self) -> None:
-        """Save current status and bindings"""
-        self.status_stack.append(
-            (self.status.message, self.bindings, self.status.title)
-        )
-
-    def pop_status(self) -> None:
-        """Recover last status and bindings"""
-        if len(self.status_stack) > 0:
-            (
-                self.status.message,
-                self.bindings,
-                self.status.title,
-            ) = self.status_stack.pop()
-            self.footer.regenerate()  # Regenerate footter
-        if len(self.status_stack) == 0:
-            self.status.regenerate_status_from_dict = True
 
     async def action_pop_status(self) -> None:
         """Back out and return to last status"""
@@ -311,23 +336,24 @@ class MyApp(App):
 def main():
 
     DEFAULT_CONFIG = "config.yml"
-    DEFAULT_SERVOCONFIG = "servo_config.yml"
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--config",
         help="Configuration file for serial access to servo controller, if "
         + "'{}' exists it will be loaded automatically ".format(DEFAULT_CONFIG)
-        + "even if this parameter is not set",
+        + "unless this parameter specifies a different config file",
         default=DEFAULT_CONFIG,
     )
 
     parser.add_argument(
         "--servoconfig",
-        help="Servo Configuration File if "
-        + "'{} exists it will be loaded automatically ".format(DEFAULT_SERVOCONFIG)
-        + "even if this parameter is not set",
-        default=DEFAULT_SERVOCONFIG,
+        help="Override servo config file specified in {}".format(DEFAULT_CONFIG),
+    )
+
+    parser.add_argument(
+        "--poseconfig",
+        help="Override pose configuration file specified in {}".format(DEFAULT_CONFIG),
     )
 
     parser.add_argument(
@@ -349,40 +375,46 @@ def main():
     if args.verbose is True:  # smart errors
         rich.traceback.install(show_locals=True)
 
-    # if no file is specified and the default file doesn't exist, set to None which
-    # will tell the loader to use the system defaults.
-    if args.config == DEFAULT_CONFIG and not exists(DEFAULT_CONFIG):
-        args.config = None
+    configfile = file_utils.ConfigFile(args.config)
 
-    config = file_utils.load_configuration_file(args.config)
+    if args.servoconfig is None:
+        args.servoconfig = configfile.config["servo_config"]
+
+    if args.poseconfig is None:
+        args.poseconfig = configfile.config["pose_config"]
+
     servo = importlib.import_module(
-        ".Servo.{}".format(config["servoboard"]), package="spotbot"
+        ".Servo.{}".format(configfile.config["servoboard"]), package="spotbot"
     )
 
-    if "relay_settings" in config:
-        relay = gpio.relay(
-            config["relay_settings"]["gpio"], config["relay_settings"]["active_high"]
+    if "relay_settings" in configfile.config:
+        relay = gpio.Relay(
+            configfile.config["relay_settings"]["gpio"],
+            configfile.config["relay_settings"]["active_high"],
         )
         atexit.register(relay.close)
     else:
         relay = None
 
-    # load configuration file
-    servo_config = file_utils.load_servo_configuration_file(args.servoconfig)
+    # load servo configuration file
+    servo_config = file_utils.ServoConfiFile(args.servoconfig)
 
     # Connect to the servo board
     servo_ctl = (
-        servo.ServoController(**config["serial_settings"])
+        servo.ServoController(**configfile.config["serial_settings"])
         if args.testservo is False
         else None
     )
+
+    # load pose configuraiton file
+    # pose_config=
 
     MyApp.run(
         log="textual.log",
         log_verbosity=3,
         title="Spotmicro Configuration",
         servo_ctl=servo_ctl,
-        servo_config=servo_config,
+        servos=servo_config,
         relay=relay,
     )
 

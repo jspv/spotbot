@@ -7,3 +7,5 @@ serial_settings:
 relay_settings:
   gpio: 27
   active_high: True
+servo_config: "servo_config.yml"
+pose_config: "pose_config.yml"
