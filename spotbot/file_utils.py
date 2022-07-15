@@ -1,5 +1,6 @@
-import yaml
+from ruamel.yaml import YAML
 from schema import Schema, SchemaError, Or, And, Regex, Optional
+from datetime import datetime
 import serial
 import sys
 
@@ -22,9 +23,10 @@ class ConfigFile(object):
         self.config = self.load()
 
     def load(self) -> dict:
+        yaml = YAML()
 
         with open(self.configfile) as fd:
-            config = yaml.safe_load(fd)
+            config = yaml.load(fd)
 
         config_schema = Schema(
             {
@@ -78,6 +80,7 @@ class ServoConfiFile(object):
         self.data = self.load()
 
     def load(self) -> dict:
+        yaml = YAML()
         config_schema = Schema(
             {
                 And(
@@ -109,11 +112,22 @@ class ServoConfiFile(object):
         )
 
         with open(self.configfile) as fd:
-            config = yaml.safe_load(fd)
+            self.config = yaml.load(fd)
 
         try:
-            config_schema.validate(config)
+            config_schema.validate(self.config)
         except SchemaError as se:
             sys.exit(f"{self.configfile}: {se.code}")
 
-        return config
+        return self.config
+
+    def save(self) -> None:
+        yaml = YAML()
+        now = datetime.now().replace(microsecond=0)
+
+        self.config.yaml_set_start_comment(
+            "This file automatically generated on {} by spotbot config".format(now)
+        )
+
+        with open(self.configfile, "w") as fd:
+            yaml.dump(self.config, fd)

@@ -11,7 +11,7 @@ def add_menus(menuwidget: Menu) -> None:
             ("M", "Swich Mode µs/∠", "toggle_servo_mode"),
             None,
             ("L", "Load Config", "tbd"),
-            ("S", "Save Config", "tbd"),
+            ("S", "Save Config", "save_servo_config"),
             None,
             ("D", "Set Speed", "tbd"),
             ("A", "Set Acceleration", "tbd"),

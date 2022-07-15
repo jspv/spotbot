@@ -31,8 +31,8 @@ class Utils(object):
             return "Off"
 
     def refresh_servo_data(self, servoletter: str) -> None:
-        servoconfig = self.parent.servos.data[servoletter]
-        self.parent.servos.data[servoletter] = (
+        servoconfig = self.parent.servo_config.data[servoletter]
+        self.parent.servo_data[servoletter] = (
             servoletter,
             servoconfig["description"],
             servoconfig["designation"],

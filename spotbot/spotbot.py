@@ -147,7 +147,7 @@ class MyApp(App):
 
         # load the current servo data
         for servoletter in [chr(i) for i in range(ord("A"), ord("R"))]:
-            if servoletter in self.servos.data:
+            if servoletter in self.servo_config.data:
                 self.utils.refresh_servo_data(servoletter)
 
         # describe the display table layout
@@ -157,7 +157,7 @@ class MyApp(App):
         ]
 
         # send the data to the Widget
-        self.body.update(self.servos.data)
+        self.body.update(self.servo_data)
 
         # Bindings for servo hot-keys
         for table in self.body.servo_layout:
@@ -332,6 +332,10 @@ class MyApp(App):
             )
             self.footer.regenerate()
 
+    async def action_save_servo_config(self) -> None:
+        self.servo_config.save()
+        await self.menu.pop_menu(pop_all=True)
+
 
 def main():
 
@@ -414,7 +418,7 @@ def main():
         log_verbosity=3,
         title="Spotmicro Configuration",
         servo_ctl=servo_ctl,
-        servos=servo_config,
+        servo_config=servo_config,
         relay=relay,
     )
 
