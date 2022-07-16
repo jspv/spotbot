@@ -11,6 +11,13 @@ from typing import Union
 
 
 class Body(Widget):
+
+
+
+    # highlight_key: Reactive[str | None] = Reactive(None)
+    highlight_key = Reactive(None)
+    # _key_text: Reactive[RenderableType | None] = Reactive(non)
+
     def __init__(
         self,
         *args,
@@ -33,21 +40,17 @@ class Body(Widget):
         # Divide the main into two parts side-by-side
         self.layout["main"].split_row(Layout(name="left"), Layout(name="right"))
 
-        # Create dict to hold the tables
-        self.servo_table = {}
+        # Create list to hold the tables
+        self.servo_table = []
 
         # Layout of servers - populated when servo config loaded
         self.servo_layout = []
 
-    # Create the initial mappings which contain the data for the tables
-    mappings: Reactive[dict] = Reactive({})
+        # currently selected servos
+        self.selection = []
 
-    # Store selected servo
-    selection: Reactive[str] = Reactive("")
-
-    # highlight_key: Reactive[str | None] = Reactive(None)
-    highlight_key = Reactive(None)
-    # _key_text: Reactive[RenderableType | None] = Reactive(non)
+        # Create the initial mappings which contain the data for the tables
+        self.mappings: {}
 
     async def watch_highlight_key(self, value) -> None:
         """If highlight key changes we need to regenerate the text."""
@@ -82,24 +85,26 @@ class Body(Widget):
         return table
 
     def key_press(self, key: str) -> None:
-        if key != self.selection:
-            self.selection = key
+        if key not in self.selection:
+            self.selection.append(key)
         else:
-            self.selection = ""
+            self.selection.remove(key)
+        self.refresh()
 
-    def get_selection(self) -> str:
+    def get_selection(self) -> list:
         return self.selection
 
     def clear_selection(self) -> None:
-        self.selection = ""
+        self.selection.clear()
 
     def update(self, mappings: dict) -> None:
         """Update the servo mappings and refresh the widget"""
         self.mappings = mappings
+        self.refresh()
 
     def render(self) -> Panel:
 
-        self.servo_table = []
+        self.servo_table.clear()
 
         # Each entry in servo_layout represents a table of rows in the order to print
         for table in range(0, len(self.servo_layout)):
@@ -111,7 +116,7 @@ class Body(Widget):
                     self.servo_table[table].add_row("", "", "", "", "")
                     continue
                 (key, desc, servo, us, angle) = self.mappings[row]
-                column_style = "reverse" if self.selection == key else "none"
+                column_style = "reverse" if key in self.selection else "none"
                 self.servo_table[table].add_row(
                     "[b]({})[/b]".format(key.upper()),
                     desc,

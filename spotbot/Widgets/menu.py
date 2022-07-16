@@ -58,8 +58,7 @@ class MenuBook(object):
 
 class Menu(Widget):
 
-    # Not sure why, but reactives need to be class variables and they work
-    # fine even when shadowed
+    # Reactives are descriptors, so need to be defined as class variables
     index: Reactive[int] = Reactive(0)
     menu_style: Reactive[StyleType] = Reactive("none")
     _menu_items: Reactive[List[menuitem]] = Reactive([])

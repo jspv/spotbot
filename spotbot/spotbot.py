@@ -206,7 +206,6 @@ class MyApp(App):
             str(servo.home_angle),
         )
         self.body.update(self.servo_data)
-        self.body.refresh()
 
     #
     # Actions
@@ -263,7 +262,7 @@ class MyApp(App):
             Hotkey pressed,
         """
         self.body.key_press(key)
-        if self.body.selection == "":
+        if len(self.body.selection) == 0:
             self.unbind("up")
             self.unbind("down")
             self.unbind("0")
@@ -299,32 +298,40 @@ class MyApp(App):
         await self.menu.pop_menu(pop_all=True)
 
         # Refresh bindings if needed
-        if self.body.selection != "":
+        if len(self.body.selection) != 0:
             symbol = "∠" if self.servo_mode == "angle" else "µs"
             await self.bind("up", "servo_increment", f"Increment {symbol}")
             await self.bind("down", "servo_decrement", f"Decrement {symbol}")
             self.footer.regenerate()
 
     async def action_servo_increment(self) -> None:
-        if self.servo_mode == "us":
-            servoletter = self.body.selection
-            self.servos[servoletter].position_us = (
-                self.servos[servoletter].position_us + self.us_increment
-            )
+        for servoletter in self.body.selection:
+            if self.servo_mode == "us":
+                self.servos[servoletter].position_us = (
+                    self.servos[servoletter].position_us + self.us_increment
+                )
+            else:
+                self.servos[servoletter].position_angle = (
+                    self.servos[servoletter].position_angle + self.angle_increment
+                )
             self.refresh_servo_data(servoletter)
 
     async def action_servo_decrement(self) -> None:
-        if self.servo_mode == "us":
-            servoletter = self.body.selection
-            self.servos[servoletter].position_us = (
-                self.servos[servoletter].position_us - self.us_increment
-            )
+        for servoletter in self.body.selection:
+            if self.servo_mode == "us":
+                self.servos[servoletter].position_us = (
+                    self.servos[servoletter].position_us - self.us_increment
+                )
+            else:
+                self.servos[servoletter].position_angle = (
+                    self.servos[servoletter].position_angle - self.angle_increment
+                )
             self.refresh_servo_data(servoletter)
 
     async def action_servo_off(self) -> None:
-        servoletter = self.body.selection
-        self.servos[servoletter].stop()
-        self.refresh_servo_data(servoletter)
+        for servoletter in self.body.selection:
+            self.servos[servoletter].stop()
+            self.refresh_servo_data(servoletter)
 
     async def action_toggle_relay(self) -> None:
         self.relay.toggle()
@@ -425,15 +432,20 @@ def main():
     # load pose configuraiton file
     # pose_config=
 
-    MyApp.run(
-        log="textual.log",
-        log_verbosity=3,
-        title="Spotmicro Configuration",
-        servo_ctl=servo_ctl,
-        servos=servos,
-        servo_configfile=servo_configfile,
-        relay=relay,
-    )
+    try:
+        MyApp.run(
+            log="textual.log",
+            log_verbosity=3,
+            title="Spotmicro Configuration",
+            servo_ctl=servo_ctl,
+            servos=servos,
+            servo_configfile=servo_configfile,
+            relay=relay,
+        )
+    except:
+        if relay is not None:
+            relay.close
+        raise
 
 
 if __name__ == "__main__":

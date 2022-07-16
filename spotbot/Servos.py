@@ -82,5 +82,15 @@ class Servo(object):
     def position_us(self, value: int):
         self.servo_ctl.set_target_us(self.channel, value)
 
+    @property
+    def position_angle(self) -> float:
+        # todo
+        return 123.4
+
+    @position_angle.setter
+    def position_angle(self, value: float):
+        # todo
+        pass
+
     def stop(self) -> None:
         self.servo_ctl.stop_channel(self.channel)
