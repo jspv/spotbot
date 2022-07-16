@@ -30,6 +30,12 @@ class Utils(object):
         else:
             return "Off"
 
+    def get_multi_select(self) -> str:
+        if self.parent.body.multi_select is True:
+            return "[r]On[/r]"
+        else:
+            return "Off"
+
     def a_to_us(servo: dict, angle: float) -> int:
         return 1502
 

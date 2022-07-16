@@ -52,6 +52,8 @@ class MyApp(App):
             "Home Servos",
         )
 
+        await self.bind("m", "toggle_multi_select", "Multi-Select")
+
         if self.relay is not None:
             await self.bind(
                 "\\",
@@ -106,6 +108,10 @@ class MyApp(App):
             self.status.add_entry(
                 "relay_status", "Servo Power", self.utils.is_relay_on_off
             )
+
+        self.status.add_entry(
+            "multi-select", "Multi-Select", self.utils.get_multi_select
+        )
 
         self.status.add_entry(
             "time",
@@ -349,6 +355,9 @@ class MyApp(App):
                 "Enable Servos",
             )
             self.footer.regenerate()
+
+    async def action_toggle_multi_select(self) -> None:
+        self.body.multi_select = not self.body.multi_select
 
     async def action_save_servo_config(self) -> None:
         self.servo_configfile.save()

@@ -61,7 +61,6 @@ class Menu(Widget):
     # Reactives are descriptors, so need to be defined as class variables
     index: Reactive[int] = Reactive(0)
     menu_style: Reactive[StyleType] = Reactive("none")
-    _menu_items: Reactive[List[menuitem]] = Reactive([])
 
     def __init__(
         self,

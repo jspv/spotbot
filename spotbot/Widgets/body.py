@@ -49,6 +49,8 @@ class Body(Widget):
         # currently selected servos
         self.selection = []
 
+        self.multi_select = False
+
         # Create the initial mappings which contain the data for the tables
         self.mappings: {}
 
@@ -86,9 +88,15 @@ class Body(Widget):
 
     def key_press(self, key: str) -> None:
         if key not in self.selection:
-            self.selection.append(key)
+            if self.multi_select is True:
+                self.selection.append(key)
+            else:
+                self.selection = [key]
         else:
-            self.selection.remove(key)
+            if self.multi_select is True:
+                self.selection.remove(key)
+            else:
+                self.selection.clear()
         self.refresh()
 
     def get_selection(self) -> list:
