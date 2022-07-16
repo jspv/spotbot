@@ -1,6 +1,6 @@
-# This file automatically generated on 2022-07-14 21:56:43 by spotbot config
+# This file automatically generated on 2022-07-15 22:00:48 by spotbot config
 A:
-  position: 4
+  channel: 4
   description: Front-LEFT-Top
   designation: S4
   high_us: 1936
@@ -10,7 +10,7 @@ A:
   low_angle: 0.0
   home_angle: 90.0
 B:
-  position: 5
+  channel: 5
   description: Front-LEFT-Middle
   designation: S5
   high_us: 1936
@@ -20,7 +20,7 @@ B:
   low_angle: 20.0
   home_angle: 120.0
 C:
-  position: 6
+  channel: 6
   description: Front-LEFT-Bottom
   designation: S6
   high_us: 1760
@@ -30,7 +30,7 @@ C:
   low_angle: 42.05
   home_angle: 100.0
 G:
-  position: 0
+  channel: 0
   description: Front-RIGHT-Top
   designation: S0
   high_us: 1936
@@ -40,7 +40,7 @@ G:
   low_angle: 0.0
   home_angle: 90.0
 H:
-  position: 1
+  channel: 1
   description: Front-RIGHT-Middle
   designation: S1
   high_us: 1936
@@ -50,7 +50,7 @@ H:
   low_angle: 20.0
   home_angle: 120.0
 I:
-  position: 2
+  channel: 2
   description: Front-RIGHT-Bottom
   designation: S2
   high_us: 1760
@@ -60,7 +60,7 @@ I:
   low_angle: 42.05
   home_angle: 100.0
 D:
-  position: 12
+  channel: 12
   description: Rear-LEFT-Top
   designation: S0
   high_us: 1936
@@ -70,7 +70,7 @@ D:
   low_angle: 0.0
   home_angle: 90.0
 E:
-  position: 13
+  channel: 13
   description: Rear-LEFT-Middle
   designation: S1
   high_us: 1936
@@ -80,7 +80,7 @@ E:
   low_angle: 20.0
   home_angle: 120.0
 F:
-  position: 14
+  channel: 14
   description: Rear-LEFT-Bottom
   designation: S2
   high_us: 1760
@@ -90,7 +90,7 @@ F:
   low_angle: 42.05
   home_angle: 100.0
 J:
-  position: 8
+  channel: 8
   description: Rear-RIGHT-Top
   designation: S0
   high_us: 1936
@@ -100,7 +100,7 @@ J:
   low_angle: 0.0
   home_angle: 90.0
 K:
-  position: 9
+  channel: 9
   description: Rear-RIGHT-Middle
   designation: S1
   high_us: 1936
@@ -110,7 +110,7 @@ K:
   low_angle: 20.0
   home_angle: 120.0
 L:
-  position: 10
+  channel: 10
   description: Rear-RIGHT-Bottom
   designation: S2
   high_us: 1760

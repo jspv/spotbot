@@ -3,9 +3,10 @@ from typing import Any
 
 
 class App(textual.app.App):
-    def __init__(self, *args, servo_ctl, servo_config, relay, **kwargs):
+    def __init__(self, *args, servo_ctl, servos, servo_configfile, relay, **kwargs):
         self.servo_ctl = servo_ctl
-        self.servo_config = servo_config
+        self.servos = servos
+        self.servo_configfile = servo_configfile
         self.relay = relay
         super().__init__(*args, **kwargs)
 

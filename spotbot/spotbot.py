@@ -147,8 +147,8 @@ class MyApp(App):
 
         # load the current servo data
         for servoletter in [chr(i) for i in range(ord("A"), ord("R"))]:
-            if servoletter in self.servo_config.data:
-                self.utils.refresh_servo_data(servoletter)
+            if servoletter in self.servos:
+                self.refresh_servo_data(servoletter)
 
         # describe the display table layout
         self.body.servo_layout = [
@@ -195,6 +195,18 @@ class MyApp(App):
             self.footer.regenerate()  # Regenerate footter
         if len(self.status_stack) == 0:
             self.status.regenerate_status_from_dict = True
+
+    def refresh_servo_data(self, servoletter: str) -> None:
+        servo = self.servos[servoletter]
+        self.servo_data[servoletter] = (
+            servoletter,
+            servo.description,
+            servo.designation,
+            str(servo.position_us),
+            str(servo.home_angle),
+        )
+        self.body.update(self.servo_data)
+        self.body.refresh()
 
     #
     # Actions
@@ -296,24 +308,23 @@ class MyApp(App):
     async def action_servo_increment(self) -> None:
         if self.servo_mode == "us":
             servoletter = self.body.selection
-            channel = self.servo_config[servoletter]["position"]
-            new = self.servo_ctl.get_position_us(channel) + self.us_increment
-            self.servo_ctl.set_target_us(channel, new)
-            self.utils.refresh_servo_data(servoletter)
+            self.servos[servoletter].position_us = (
+                self.servos[servoletter].position_us + self.us_increment
+            )
+            self.refresh_servo_data(servoletter)
 
     async def action_servo_decrement(self) -> None:
         if self.servo_mode == "us":
             servoletter = self.body.selection
-            channel = self.servo_config[servoletter]["position"]
-            new = self.servo_ctl.get_position_us(channel) - self.us_increment
-            self.servo_ctl.set_target_us(channel, new)
-            self.utils.refresh_servo_data(servoletter)
+            self.servos[servoletter].position_us = (
+                self.servos[servoletter].position_us - self.us_increment
+            )
+            self.refresh_servo_data(servoletter)
 
     async def action_servo_off(self) -> None:
         servoletter = self.body.selection
-        channel = self.servo_config[servoletter]["position"]
-        self.servo_ctl.stop_channel(channel)
-        self.utils.refresh_servo_data(servoletter)
+        self.servos[servoletter].stop()
+        self.refresh_servo_data(servoletter)
 
     async def action_toggle_relay(self) -> None:
         self.relay.toggle()
@@ -333,7 +344,7 @@ class MyApp(App):
             self.footer.regenerate()
 
     async def action_save_servo_config(self) -> None:
-        self.servo_config.save()
+        self.servo_configfile.save()
         await self.menu.pop_menu(pop_all=True)
 
 
@@ -387,7 +398,7 @@ def main():
     if args.poseconfig is None:
         args.poseconfig = configfile.config["pose_config"]
 
-    servo = importlib.import_module(
+    servolib = importlib.import_module(
         ".Servo.{}".format(configfile.config["servoboard"]), package="spotbot"
     )
 
@@ -400,15 +411,16 @@ def main():
     else:
         relay = None
 
-    # load servo configuration file
-    servo_config = file_utils.ServoConfiFile(args.servoconfig)
-
-    # Connect to the servo board
+    # Connect to the servo board and get a controller object
     servo_ctl = (
-        servo.ServoController(**configfile.config["serial_settings"])
+        servolib.ServoController(**configfile.config["serial_settings"])
         if args.testservo is False
         else None
     )
+
+    # load servo configuration file
+    servo_configfile = file_utils.ServoConfiFile(args.servoconfig, servo_ctl)
+    servos = servo_configfile.load()
 
     # load pose configuraiton file
     # pose_config=
@@ -418,7 +430,8 @@ def main():
         log_verbosity=3,
         title="Spotmicro Configuration",
         servo_ctl=servo_ctl,
-        servo_config=servo_config,
+        servos=servos,
+        servo_configfile=servo_configfile,
         relay=relay,
     )
 

@@ -3,6 +3,7 @@ from schema import Schema, SchemaError, Or, And, Regex, Optional
 from datetime import datetime
 import serial
 import sys
+from . import Servos
 
 
 class ConfigFile(object):
@@ -75,9 +76,11 @@ class ConfigFile(object):
 
 
 class ServoConfiFile(object):
-    def __init__(self, configfile: str) -> None:
+    def __init__(self, configfile: str, servo_ctl: object) -> dict:
         self.configfile = configfile
         self.data = self.load()
+        # provide the servolib to the servos
+        Servos.Servo.servo_ctl = servo_ctl
 
     def load(self) -> dict:
         yaml = YAML()
@@ -86,10 +89,10 @@ class ServoConfiFile(object):
                 And(
                     str, Regex(r"^[A-R]$"), error="lettermap needs to be A through R"
                 ): {
-                    "position": And(
+                    "channel": And(
                         int,
                         lambda n: 0 <= n <= 17,
-                        error="position needs to be between 0 and 17",
+                        error="channel needs to be between 0 and 17",
                     ),
                     "designation": And(
                         str,
@@ -112,14 +115,24 @@ class ServoConfiFile(object):
         )
 
         with open(self.configfile) as fd:
-            self.config = yaml.load(fd)
+            config = yaml.load(fd)
 
         try:
-            config_schema.validate(self.config)
+            config_schema.validate(config)
         except SchemaError as se:
             sys.exit(f"{self.configfile}: {se.code}")
 
-        return self.config
+        # Build servo objects
+        servos = {}
+        for i in config.keys():
+            servos[i] = Servos.Servo(i, **config[i])
+
+        # In order to preserve yaml comments, store a copy of the yaml config
+        # and a reference to the dictionary of servos.
+        self.config = config
+        self.servos = servos
+
+        return servos
 
     def save(self) -> None:
         yaml = YAML()
@@ -129,5 +142,21 @@ class ServoConfiFile(object):
             "This file automatically generated on {} by spotbot config".format(now)
         )
 
+        # update the config with any changes
+        for servo in self.servos.values():
+            for attr in [
+                "channel",
+                "description",
+                "designation",
+                "high_us",
+                "low_us",
+                "high_us",
+                "high_angle",
+                "low_angle",
+                "home_angle",
+            ]:
+                self.config[servo.lettermap][attr] = getattr(servo, attr)
+
+        # write the config
         with open(self.configfile, "w") as fd:
             yaml.dump(self.config, fd)

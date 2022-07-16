@@ -30,19 +30,6 @@ class Utils(object):
         else:
             return "Off"
 
-    def refresh_servo_data(self, servoletter: str) -> None:
-        servoconfig = self.parent.servo_config.data[servoletter]
-        self.parent.servo_data[servoletter] = (
-            servoletter,
-            servoconfig["description"],
-            servoconfig["designation"],
-            # str(Utils.a_to_us(servo, servo["home_angle"])),
-            str(self.parent.servo_ctl.get_position_us(servoconfig["position"])),
-            str(servoconfig["home_angle"]),
-        )
-        self.parent.body.update(self.parent.servo_data)
-        self.parent.body.refresh()
-
     def a_to_us(servo: dict, angle: float) -> int:
         return 1502
 
