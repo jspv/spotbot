@@ -7,12 +7,10 @@ from rich.text import Text
 from rich.align import Align
 from rich.layout import Layout
 from rich.style import StyleType
-from typing import Union
+from typing import Union, Tuple
 
 
 class Body(Widget):
-
-
 
     # highlight_key: Reactive[str | None] = Reactive(None)
     highlight_key = Reactive(None)
@@ -35,15 +33,15 @@ class Body(Widget):
         self.layout.split(
             # Layout(name="header", size=1),
             Layout(ratio=1, name="main"),
+            Layout(ratio=1, name="config", visible=False),
         )
-
         # Divide the main into two parts side-by-side
         self.layout["main"].split_row(Layout(name="left"), Layout(name="right"))
 
         # Create list to hold the tables
         self.servo_table = []
 
-        # Layout of servers - populated when servo config loaded
+        # Layout of servos - positions the servo entries in the tables
         self.servo_layout = []
 
         # currently selected servos
@@ -51,8 +49,12 @@ class Body(Widget):
 
         self.multi_select = False
 
-        # Create the initial mappings which contain the data for the tables
-        self.mappings: {}
+        # Data to populate the tables
+        self.mappings = {}
+        self.config_mapping = {}
+
+        # Modes: "normal" or "config"
+        self.config_mode: bool = False
 
     async def watch_highlight_key(self, value) -> None:
         """If highlight key changes we need to regenerate the text."""
@@ -105,10 +107,63 @@ class Body(Widget):
     def clear_selection(self) -> None:
         self.selection.clear()
 
-    def update(self, mappings: dict) -> None:
+    def update_servos(self, mappings: dict) -> None:
         """Update the servo mappings and refresh the widget"""
         self.mappings = mappings
         self.refresh()
+
+    def update_config(
+        self,
+        servo: str,
+        desc: str,
+        channel: int,
+        desig: str,
+        max_us: int,
+        min_us: int,
+        angle1_us: int,
+        angle1_deg: float,
+        angle2_us: float,
+        angle2_deg: float,
+        home_deg: float,
+    ) -> None:
+        self.config_mapping = {
+            "servo": servo,
+            "description": desc,
+            "channel": str(channel),
+            "designation": desig,
+            "max_us": str(max_us),
+            "min_us": str(min_us),
+            "angle1_us": str(angle1_us),
+            "angle1_deg": str(angle2_us),
+            "angle2_us": str(angle1_deg),
+            "angle2_deg": str(angle2_deg),
+            "home_deg": str(home_deg),
+        }
+
+    def enable_config(self) -> None:
+        self.config_mode = True
+        self.layout["config"].visible = True
+        self.refresh(layout=True)
+
+    def disable_config(self) -> None:
+        self.config_mode = False
+        self.layout["config"].visible = False
+        self.refresh(layout=True)
+
+    def _create_config_panel(self) -> None:
+        table = Table(show_lines=False)
+        table.add_column("Servo", width=5, justify="center")
+        table.add_column("Description", width=20, justify="center")
+        table.add_column("Channel", width=8, justify="center")
+        table.add_column("Designation", width=3, justify="center")
+        table.add_column("Max µs", width=6, justify="center")
+        table.add_column("Min µs", width=6, justify="center")
+        table.add_column("Angle1 µs", width=6, justify="center")
+        table.add_column("Angle1 ∠", width=6, justify="center")
+        table.add_column("Angle2 µs", width=6, justify="center")
+        table.add_column("Angle2 ∠", width=6, justify="center")
+        table.add_column("Home ∠", width=6, justify="center")
+        return table
 
     def render(self) -> Panel:
 
@@ -136,5 +191,22 @@ class Body(Widget):
 
         self.layout["left"].update(Align(self.servo_table[0], align="center"))
         self.layout["right"].update(Align(self.servo_table[1], align="center"))
+
+        if self.config_mode is True and len(self.config_mapping) != 0:
+            table = self._create_config_panel()
+            table.add_row(
+                self.config_mapping["servo"],
+                self.config_mapping["description"],
+                self.config_mapping["channel"],
+                self.config_mapping["designation"],
+                self.config_mapping["max_us"],
+                self.config_mapping["min_us"],
+                self.config_mapping["angle1_us"],
+                self.config_mapping["angle1_deg"],
+                self.config_mapping["angle2_us"],
+                self.config_mapping["angle2_deg"],
+                self.config_mapping["home_deg"],
+            )
+            self.layout["config"].update(Align(table, align="center"))
 
         return Panel(self.layout)

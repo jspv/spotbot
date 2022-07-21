@@ -83,6 +83,7 @@ class ServoConfiFile(object):
         Servos.Servo.servo_ctl = servo_ctl
 
     def load(self) -> dict:
+        """Load servo information from config file and return dict of servo objects"""
         yaml = YAML()
         config_schema = Schema(
             {
@@ -104,12 +105,51 @@ class ServoConfiFile(object):
                         lambda n: len(n) < 30,
                         error="description too long, <30 characters",
                     ),
-                    "high_us": And(int, lambda n: 300 <= n <= 3000),
-                    "low_us": And(int, lambda n: 300 <= n <= 3000),
-                    "high_pos": Or("high", "low"),
-                    "high_angle": And(float, lambda n: 0 <= n <= 180),
-                    "low_angle": And(float, lambda n: 0 <= n <= 180),
-                    "home_angle": And(float, lambda n: 0 <= n <= 180),
+                    "max_us": And(
+                        int,
+                        lambda n: 300 <= n <= 3000,
+                        error="_us entries need to be between 300 and 3000",
+                    ),
+                    "min_us": And(
+                        int,
+                        lambda n: 300 <= n <= 3000,
+                        error="_us entries need to be between 300 and 3000",
+                    ),
+                    Optional("max_deg"): And(
+                        float,
+                        lambda n: 0 <= n <= 180,
+                        error="_deg entries need to be between 0.0 and 180.0",
+                    ),
+                    Optional("min_deg"): And(
+                        float,
+                        lambda n: 0 <= n <= 180,
+                        error="_deg entries need to be between 0.0 and 180.0",
+                    ),
+                    "angle1_us": And(
+                        int,
+                        lambda n: 300 <= n <= 3000,
+                        error="_us entries need to be between 300 and 3000",
+                    ),
+                    "angle1_deg": And(
+                        float,
+                        lambda n: 0 <= n <= 180,
+                        error="_deg entries need to be between 0.0 and 180.0",
+                    ),
+                    "angle2_us": And(
+                        int,
+                        lambda n: 300 <= n <= 3000,
+                        error="_us entries need to be between 300 and 3000",
+                    ),
+                    "angle2_deg": And(
+                        float,
+                        lambda n: 0 <= n <= 180,
+                        error="_deg entries need to be between 0.0 and 180.0",
+                    ),
+                    "home_deg": And(
+                        float,
+                        lambda n: 0 <= n <= 180,
+                        error="_deg entries need to be between 0.0 and 180.0",
+                    ),
                 }
             }
         )

@@ -4,9 +4,9 @@ from typing import Any
 
 class Servo(object):
     MAX_HIGH_US = 3000
-    MAX_LOW_US = 300
-    MAX_HIGH_A = 270
-    MAX_LOW_A = 0
+    MIN_LOW_US = 300
+    MAX_HIGH_DEG = 270
+    MIN_LOW_DEG = 0
     MAX_CHANNELS = 18
 
     # Servo controller to be provided externally via this class attribute.
@@ -18,12 +18,15 @@ class Servo(object):
         channel: int,
         description: str,
         designation: str = "",
-        high_us: int = 3000,
-        low_us: int = 300,
-        high_pos: str = "high",
-        high_angle: float = 180.0,
-        low_angle: float = 0.0,
-        home_angle: float = 90.0,
+        max_us: int = 3000,
+        min_us: int = 300,
+        max_deg: float = 180.0,
+        min_deg: float = 0.0,
+        home_deg: float = 90.0,
+        angle1_us: int = 1500,
+        angle1_deg: float = 90.0,
+        angle2_us: int = 1000,
+        angle2_deg: float = 0.0,
         config: dict = None,
     ) -> None:
         if re.match(r"^[A-R]$", lettermap):
@@ -36,39 +39,67 @@ class Servo(object):
         else:
             raise ValueError("Channel needs to be between 0 and 17")
 
-        if low_us >= self.MAX_LOW_US or low_us <= self.MAX_HIGH_US:
-            self.low_us = low_us
+        if min_us >= self.MIN_LOW_US and min_us <= self.MAX_HIGH_US:
+            self.min_us = min_us
         else:
             raise ValueError(
-                f"low_us needs to be between {self.MAX_LOW_US} and {self.MAX_HIGH_US}"
+                f"min_us needs to be between {self.MIN_LOW_US} and {self.MAX_HIGH_US}"
             )
 
-        if high_us >= self.MAX_LOW_US or high_us <= self.MAX_HIGH_US:
-            self.high_us = high_us
+        if max_us >= self.MIN_LOW_US and max_us <= self.MAX_HIGH_US:
+            self.max_us = max_us
         else:
             raise ValueError(
-                f"high_us needs to be between {self.MAX_LOW_US} and {self.MAX_HIGH_US}"
+                f"max_us needs to be between {self.MIN_LOW_US} and {self.MAX_HIGH_US}"
             )
 
-        if low_angle >= self.MAX_LOW_A and low_angle <= self.MAX_HIGH_A:
-            self.low_angle = low_angle
+        if angle1_us >= self.MIN_LOW_US and angle1_us <= self.MAX_HIGH_US:
+            self.angle1_us = angle1_us
         else:
             raise ValueError(
-                f"low_angle needs to be between {self.MAX_LOW_A} and {self.MAX_HIGH_A}"
+                f"angle1_us needs to be between {self.MIN_LOW_US} and {self.MAX_HIGH_US}"
             )
 
-        if high_angle >= self.MAX_LOW_A and low_angle <= self.MAX_HIGH_A:
-            self.high_angle = high_angle
+        if angle2_us >= self.MIN_LOW_US and angle2_us <= self.MAX_HIGH_US:
+            self.angle2_us = angle2_us
         else:
             raise ValueError(
-                f"high_angle needs to be between {self.MAX_LOW_A} and {self.MAX_HIGH_A}"
+                f"angle2_us needs to be between {self.MIN_LOW_US} and {self.MAX_HIGH_US}"
             )
 
-        if home_angle >= self.MAX_LOW_A and low_angle <= self.MAX_HIGH_A:
-            self.home_angle = home_angle
+        if min_deg >= self.MIN_LOW_DEG and min_deg <= self.MAX_HIGH_DEG:
+            self.min_deg = min_deg
         else:
             raise ValueError(
-                f"home_angle needs to be between {self.MAX_LOW_A} and {self.MAX_HIGH_A}"
+                f"min_deg needs to be between {self.MIN_LOW_DEG} and {self.MAX_HIGH_DEG}"
+            )
+
+        if max_deg >= self.MIN_LOW_DEG and max_deg <= self.MAX_HIGH_DEG:
+            self.max_deg = max_deg
+        else:
+            raise ValueError(
+                f"max_deg needs to be between {self.MIN_LOW_DEG} and {self.MAX_HIGH_DEG}"
+            )
+
+        if home_deg >= self.MIN_LOW_DEG and home_deg <= self.MAX_HIGH_DEG:
+            self.home_deg = home_deg
+        else:
+            raise ValueError(
+                f"home_deg needs to be between {self.MIN_LOW_DEG} and {self.MAX_HIGH_DEG}"
+            )
+
+        if angle1_deg >= self.MIN_LOW_DEG and angle1_deg <= self.MAX_HIGH_DEG:
+            self.angle1_deg = angle1_deg
+        else:
+            raise ValueError(
+                f"angle1_deg needs to be between {self.MIN_LOW_DEG} and {self.MAX_HIGH_DEG}"
+            )
+
+        if angle2_deg >= self.MIN_LOW_DEG and angle2_deg <= self.MAX_HIGH_DEG:
+            self.angle2_deg = angle2_deg
+        else:
+            raise ValueError(
+                f"angle2_deg needs to be between {self.MIN_LOW_DEG} and {self.MAX_HIGH_DEG}"
             )
 
         self.description = description

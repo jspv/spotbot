@@ -3,119 +3,155 @@ A:
   channel: 4
   description: Front-LEFT-Top
   designation: S4
-  high_us: 1936
-  low_us: 592
-  high_pos: high
-  high_angle: 180.0
-  low_angle: 0.0
-  home_angle: 90.0
+  max_us: 1936
+  min_us: 592
+  max_deg: 180.0
+  min_deg: 0.0
+  home_deg: 90.0
+  angle1_us: 300
+  angle1_deg: 0.0
+  angle2_us: 300
+  angle2_deg: 0.0
 B:
   channel: 5
   description: Front-LEFT-Middle
   designation: S5
-  high_us: 1936
-  low_us: 672
-  high_pos: high
-  high_angle: 180.0
-  low_angle: 20.0
-  home_angle: 120.0
+  max_us: 1936
+  min_us: 672
+  max_deg: 180.0
+  min_deg: 20.0
+  home_deg: 120.0
+  angle1_us: 300
+  angle1_deg: 0.0
+  angle2_us: 300
+  angle2_deg: 0.0
 C:
   channel: 6
   description: Front-LEFT-Bottom
   designation: S6
-  high_us: 1760
-  low_us: 896
-  high_pos: low
-  high_angle: 0.0
-  low_angle: 42.05
-  home_angle: 100.0
+  max_us: 1760
+  min_us: 896
+  max_deg: 0.0
+  min_deg: 42.05
+  home_deg: 100.0
+  angle1_us: 300
+  angle1_deg: 0.0
+  angle2_us: 300
+  angle2_deg: 0.0
 G:
   channel: 0
   description: Front-RIGHT-Top
   designation: S0
-  high_us: 1936
-  low_us: 592
-  high_pos: high
-  high_angle: 180.0
-  low_angle: 0.0
-  home_angle: 90.0
+  max_us: 1936
+  min_us: 592
+  max_deg: 180.0
+  min_deg: 0.0
+  home_deg: 90.0
+  angle1_us: 300
+  angle1_deg: 0.0
+  angle2_us: 300
+  angle2_deg: 0.0
 H:
   channel: 1
   description: Front-RIGHT-Middle
   designation: S1
-  high_us: 1936
-  low_us: 672
-  high_pos: high
-  high_angle: 180.0
-  low_angle: 20.0
-  home_angle: 120.0
+  max_us: 1936
+  min_us: 672
+  max_deg: 180.0
+  min_deg: 20.0
+  home_deg: 120.0
+  angle1_us: 300
+  angle1_deg: 0.0
+  angle2_us: 300
+  angle2_deg: 0.0
 I:
   channel: 2
   description: Front-RIGHT-Bottom
   designation: S2
-  high_us: 1760
-  low_us: 896
-  high_pos: low
-  high_angle: 0.0
-  low_angle: 42.05
-  home_angle: 100.0
+  max_us: 1760
+  min_us: 896
+  max_deg: 0.0
+  min_deg: 42.05
+  home_deg: 100.0
+  angle1_us: 300
+  angle1_deg: 0.0
+  angle2_us: 300
+  angle2_deg: 0.0
 D:
   channel: 12
   description: Rear-LEFT-Top
   designation: S0
-  high_us: 1936
-  low_us: 592
-  high_pos: high
-  high_angle: 180.0
-  low_angle: 0.0
-  home_angle: 90.0
+  max_us: 1936
+  min_us: 592
+  max_deg: 180.0
+  min_deg: 0.0
+  home_deg: 90.0
+  angle1_us: 300
+  angle1_deg: 0.0
+  angle2_us: 300
+  angle2_deg: 0.0
 E:
   channel: 13
   description: Rear-LEFT-Middle
   designation: S1
-  high_us: 1936
-  low_us: 672
-  high_pos: high
-  high_angle: 180.0
-  low_angle: 20.0
-  home_angle: 120.0
+  max_us: 1936
+  min_us: 672
+  max_deg: 180.0
+  min_deg: 20.0
+  home_deg: 120.0
+  angle1_us: 300
+  angle1_deg: 0.0
+  angle2_us: 300
+  angle2_deg: 0.0
 F:
   channel: 14
   description: Rear-LEFT-Bottom
   designation: S2
-  high_us: 1760
-  low_us: 896
-  high_pos: low
-  high_angle: 0.0
-  low_angle: 42.05
-  home_angle: 100.0
+  max_us: 1760
+  min_us: 896
+  max_deg: 0.0
+  min_deg: 42.05
+  home_deg: 100.0
+  angle1_us: 300
+  angle1_deg: 0.0
+  angle2_us: 300
+  angle2_deg: 0.0
 J:
   channel: 8
   description: Rear-RIGHT-Top
   designation: S0
-  high_us: 1936
-  low_us: 592
-  high_pos: high
-  high_angle: 180.0
-  low_angle: 0.0
-  home_angle: 90.0
+  max_us: 1936
+  min_us: 592
+  max_deg: 180.0
+  min_deg: 0.0
+  home_deg: 90.0
+  angle1_us: 300
+  angle1_deg: 0.0
+  angle2_us: 300
+  angle2_deg: 0.0
 K:
   channel: 9
   description: Rear-RIGHT-Middle
   designation: S1
-  high_us: 1936
-  low_us: 672
-  high_pos: high
-  high_angle: 180.0
-  low_angle: 20.0
-  home_angle: 120.0
+  max_us: 1936
+  min_us: 672
+  max_deg: 180.0
+  min_deg: 20.0
+  home_deg: 120.0
+  angle1_us: 300
+  angle1_deg: 0.0
+  angle2_us: 300
+  angle2_deg: 0.0
 L:
   channel: 10
   description: Rear-RIGHT-Bottom
   designation: S2
-  high_us: 1760
-  low_us: 896
-  high_pos: low
-  high_angle: 0.0
-  low_angle: 42.05
-  home_angle: 100.0
+  max_us: 1760
+  min_us: 896
+  max_deg: 0.0
+  min_deg: 42.05
+  home_deg: 100.0
+  angle1_us: 300
+  angle1_deg: 0.0
+  angle2_us: 300
+  angle2_deg: 0.0

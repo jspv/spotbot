@@ -5,7 +5,7 @@ def add_menus(menuwidget: Menu) -> None:
     menuwidget.add_menu(
         "main",
         [
-            ("C", "Config Servo", "tbd"),
+            ("C", "Toggle Config Mode", "toggle_config_mode"),
             ("I", "Change increment µs", "menu.load_menu('us_increment')"),
             ("N", "Change increment ∠", "menu.load_menu('angle_increment')"),
             ("M", "Swich Mode µs/∠", "toggle_servo_mode"),

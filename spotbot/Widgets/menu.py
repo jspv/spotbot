@@ -209,6 +209,7 @@ class Menu(Widget):
         self.app.bindings = Bindings()
         await self.app.bind("ctrl+c", "quit", show=False)
         await self.app.bind("escape", "menu.menu_escape", show=False)
+        await self.app.bind(".", "menu.menu_escape", show=False)
         await self.app.bind("down", "menu.menu_down", show=False)
         await self.app.bind("up", "menu.menu_up", show=False)
         await self.app.bind("enter", "menu.menu_enter", show=False)

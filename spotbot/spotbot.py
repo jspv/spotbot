@@ -70,7 +70,7 @@ class MyApp(App):
         # initalize defaults
         self.servo_mode = "angle"
         # Servo adjustment increment in µs and ∠
-        self.us_increment = 1500
+        self.us_increment = 100
         self.angle_increment = 20.0
 
     # on mount is what is run when the applicaiton starts (after on_load)
@@ -151,7 +151,7 @@ class MyApp(App):
         # Main Body
         #
 
-        # load the current servo data
+        # load the servo tables with the current servo data
         for servoletter in [chr(i) for i in range(ord("A"), ord("R"))]:
             if servoletter in self.servos:
                 self.refresh_servo_data(servoletter)
@@ -161,9 +161,6 @@ class MyApp(App):
             ["A", "B", "C", None, "D", "E", "F"],
             ["G", "H", "I", None, "J", "K", "L"],
         ]
-
-        # send the data to the Widget
-        self.body.update(self.servo_data)
 
         # Bindings for servo hot-keys
         for table in self.body.servo_layout:
@@ -203,15 +200,16 @@ class MyApp(App):
             self.status.regenerate_status_from_dict = True
 
     def refresh_servo_data(self, servoletter: str) -> None:
+        """Update the servo data table for a specific servo"""
         servo = self.servos[servoletter]
         self.servo_data[servoletter] = (
             servoletter,
             servo.description,
             servo.designation,
             str(servo.position_us),
-            str(servo.home_angle),
+            str(servo.home_deg),
         )
-        self.body.update(self.servo_data)
+        self.body.update_servos(self.servo_data)
 
     #
     # Actions
@@ -280,6 +278,31 @@ class MyApp(App):
             await self.bind("0", "servo_off", "Servo Off")
             self.footer.regenerate()
 
+    async def action_servo_config_key(self, key: str) -> None:
+        """Process servo hotkey when in servo-config menu
+
+        Parameters
+        ----------
+        key : str
+            Hotkey pressed,
+        """
+        s = self.servos[key]
+        self.body.update_config(
+            s.lettermap,
+            s.description,
+            s.channel,
+            s.designation,
+            s.max_us,
+            s.min_us,
+            s.angle1_us,
+            s.angle1_deg,
+            s.angle2_us,
+            s.angle2_deg,
+            s.home_deg,
+        )
+        self.body.key_press(key)
+        self.footer.regenerate()
+
     async def action_toggle_servo_mode(self) -> None:
         if self.servo_mode == "angle":
             self.servo_mode = "us"
@@ -309,6 +332,55 @@ class MyApp(App):
             await self.bind("up", "servo_increment", f"Increment {symbol}")
             await self.bind("down", "servo_decrement", f"Decrement {symbol}")
             self.footer.regenerate()
+
+    async def action_toggle_config_mode(self) -> None:
+        # clear the menu, do this first so bindings are returned to normal
+        # before saving them.
+        await self.menu.pop_menu(pop_all=True)
+
+        if self.body.config_mode is True:
+            self.pop_status()
+            self.body.clear_selection()
+            self.body.disable_config()
+        else:
+            self.push_status()
+            self.status.message = "Config Mode"
+            self.body.clear_selection()
+
+            # Bindings for config mode
+            self.bindings = Bindings()
+            await self.bind(".", "main_menu", "Menu")
+            await self.bind(
+                "q",
+                "confirm_y_n('[bold]Quit?[/bold] Y/N', 'quit', 'pop_status', '[Quit]')",
+                "Quit",
+            )
+            if self.relay is not None:
+                await self.bind(
+                    "\\",
+                    (
+                        "confirm_y_n('[b]Enable Servos?[/b] Y/N', 'toggle_relay', "
+                        "'pop_status', '[Enable Servos]')"
+                    ),
+                    "Enable Servos",
+                )
+
+            # Bindings for servo hot-keys
+            for table in self.body.servo_layout:
+                for row in table:
+                    if row is None:
+                        continue
+                    await self.bind(row, f"servo_config_key('{row}')", "", show=False)
+                    await self.bind(
+                        row.lower(), f"servo_config_key('{row}')", "", show=False
+                    )
+            self.status.regenerate_status_from_dict = False
+            self.footer.regenerate()
+
+            # Make sure to enable/disable config last, it will cause
+            # a refresh of the body which will cause artifacts unless it
+            # is done last.
+            self.body.enable_config()
 
     async def action_servo_increment(self) -> None:
         for servoletter in self.body.selection:
