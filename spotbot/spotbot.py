@@ -6,6 +6,8 @@ from .Widgets.footer import Footer
 from .Widgets.status import Status
 from .Widgets.menu import Menu
 from .Widgets.body import Body
+from .Widgets.body import ConfigArea
+from textual.views import GridView
 from rich.text import Text
 
 from . import add_menus
@@ -78,6 +80,7 @@ class MyApp(App):
         """Create and dock the widgets."""
         self.header = Header(style="bold blue")
         self.body = Body(name="body")
+        self.config = ConfigArea()
         self.bodypadding = Placeholder(name="bodypadding")  # force body up
 
         # Status and footer will be on layer 1 and will resize with the menu,
@@ -171,15 +174,26 @@ class MyApp(App):
                 await self.bind(row.lower(), f"servo_key('{row}')", "", show=False)
 
         # Layout the widgets
+
+        # self.bodyarea = GridView()
+        # self.bodyarea.grid.add_column("body", size=60)
+        # self.bodyarea.grid.add_column("config", size=20)
+        # self.bodyarea.grid.add_row("row")
+        # self.bodyarea.grid.add_widget(self.body)
+        # self.bodyarea.grid.add_widget(self.config)
+
         await self.view.dock(self.header, edge="top")
         await self.view.dock(self.footer, size=1, edge="bottom", z=1)
         await self.view.dock(self.status, size=3, edge="bottom", z=1)
         await self.view.dock(self.menu, size=30, edge="left", name="menu", z=1)
         await self.view.dock(self.bodypadding, size=4, edge="bottom")
-        await self.view.dock(self.body, edge="top")
+        # await self.view.dock(self.bodyarea, edge="top")
+        await self.view.dock(self.body, size=130, edge="left")
+        await self.view.dock(self.config, size=30, edge="left")
+        # await self.view.dock(self.body, edge="top")
 
     #
-    # Status bar push and pop
+    # Status bar push and pop - allows statusbar to be saved and recovered
     #
     def push_status(self) -> None:
         """Save current status and bindings"""
@@ -248,11 +262,13 @@ class MyApp(App):
         await self.menu.pop_menu(pop_all=True)
 
     async def action_set_us_increment(self, increment: int) -> None:
+        """change the increment value for microseconds"""
         self.us_increment = increment
         self.status.refresh()
         await self.menu.pop_menu(pop_all=True)
 
     async def action_set_angle_increment(self, increment: float) -> None:
+        """change the increment value for angles"""
         self.angle_increment = increment
         self.status.refresh()
         await self.menu.pop_menu(pop_all=True)
@@ -286,22 +302,15 @@ class MyApp(App):
         key : str
             Hotkey pressed,
         """
-        s = self.servos[key]
-        self.body.update_config(
-            s.lettermap,
-            s.description,
-            s.channel,
-            s.designation,
-            s.max_us,
-            s.min_us,
-            s.angle1_us,
-            s.angle1_deg,
-            s.angle2_us,
-            s.angle2_deg,
-            s.home_deg,
-        )
-        self.body.key_press(key)
-        self.footer.regenerate()
+        # if the same key was selected, deselect the servo
+        if [key] == self.body.get_selection():
+            self.config.clear_config_mappings()
+            self.config.clear_selection()
+            self.body.refresh(layout=True)
+        else:
+            self.config.update_config_mapping(self.servos[key])
+            self.body.key_press(key)
+            self.footer.regenerate()
 
     async def action_toggle_servo_mode(self) -> None:
         if self.servo_mode == "angle":
@@ -338,10 +347,12 @@ class MyApp(App):
         # before saving them.
         await self.menu.pop_menu(pop_all=True)
 
-        if self.body.config_mode is True:
+        if self.config.config_mode is True:
             self.pop_status()
+            self.config.clear_config_mappings()
             self.body.clear_selection()
-            self.body.disable_config()
+            self.body.refresh(layout=True)
+            self.config.disable_config()
         else:
             self.push_status()
             self.status.message = "Config Mode"
@@ -349,12 +360,14 @@ class MyApp(App):
 
             # Bindings for config mode
             self.bindings = Bindings()
+            await self.bind("ctrl+c", "quit", show=False)
             await self.bind(".", "main_menu", "Menu")
             await self.bind(
                 "q",
                 "confirm_y_n('[bold]Quit?[/bold] Y/N', 'quit', 'pop_status', '[Quit]')",
                 "Quit",
             )
+            await self.bind("=", "toggle_config_edit", "Toggle Edit")
             if self.relay is not None:
                 await self.bind(
                     "\\",
@@ -380,7 +393,8 @@ class MyApp(App):
             # Make sure to enable/disable config last, it will cause
             # a refresh of the body which will cause artifacts unless it
             # is done last.
-            self.body.enable_config()
+            self.body.refresh(layout=True)
+            self.config.enable_config()
 
     async def action_servo_increment(self) -> None:
         for servoletter in self.body.selection:
@@ -434,6 +448,16 @@ class MyApp(App):
     async def action_save_servo_config(self) -> None:
         self.servo_configfile.save()
         await self.menu.pop_menu(pop_all=True)
+
+    async def action_toggle_config_edit(self) -> None:
+        if self.config.config_edit_mode is True:
+            self.config.disable_config_edit()
+            self.pop_status()
+        else:
+            self.push_status()
+            self.status.message = "Config Edit Mode"
+            await self.config.enable_config_edit()
+            self.footer.regenerate()
 
 
 def main():

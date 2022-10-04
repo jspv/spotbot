@@ -188,12 +188,15 @@ class ServoConfiFile(object):
                 "channel",
                 "description",
                 "designation",
-                "high_us",
-                "low_us",
-                "high_us",
-                "high_angle",
-                "low_angle",
-                "home_angle",
+                "max_us",
+                "min_us",
+                "max_deg",
+                "min_deg",
+                "home_deg",
+                "angle1_us",
+                "angle1_deg",
+                "angle2_us",
+                "angle2_deg",
             ]:
                 self.config[servo.lettermap][attr] = getattr(servo, attr)
 

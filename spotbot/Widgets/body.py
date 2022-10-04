@@ -1,21 +1,27 @@
+from os import truncate
 from textual.widget import Widget
 from textual.reactive import Reactive
+from textual.binding import Bindings
 from textual import events
 from rich.panel import Panel
+from rich.console import RenderableType
 from rich.table import Table
 from rich.text import Text
 from rich.align import Align
 from rich.layout import Layout
 from rich.style import StyleType
+import rich.repr
+
+from textual.views import GridView
+from textual_inputs import TextInput
+
+from .. import Servos
+
 from typing import Union, Tuple
 
 
+@rich.repr.auto
 class Body(Widget):
-
-    # highlight_key: Reactive[str | None] = Reactive(None)
-    highlight_key = Reactive(None)
-    # _key_text: Reactive[RenderableType | None] = Reactive(non)
-
     def __init__(
         self,
         *args,
@@ -26,14 +32,13 @@ class Body(Widget):
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
+        self._key_text: Text | None = None
 
         self.layout = Layout()
 
-        # Divide the screen into four parts
+        # Create the screen layout
         self.layout.split(
-            # Layout(name="header", size=1),
             Layout(ratio=1, name="main"),
-            Layout(ratio=1, name="config", visible=False),
         )
         # Divide the main into two parts side-by-side
         self.layout["main"].split_row(Layout(name="left"), Layout(name="right"))
@@ -53,12 +58,15 @@ class Body(Widget):
         self.mappings = {}
         self.config_mapping = {}
 
-        # Modes: "normal" or "config"
-        self.config_mode: bool = False
+        # Allow the application to access actions in this namespace
+        self.app._action_targets.add("body")
+
+    highlight_key: Reactive[str | None] = Reactive(None)
+    current_tab_index: Reactive[int] = Reactive(-1)
 
     async def watch_highlight_key(self, value) -> None:
         """If highlight key changes we need to regenerate the text."""
-        pass
+        self._key_text = None
 
     async def on_mouse_move(self, event: events.MouseMove) -> None:
         """Store any key we are moving over."""
@@ -112,59 +120,6 @@ class Body(Widget):
         self.mappings = mappings
         self.refresh()
 
-    def update_config(
-        self,
-        servo: str,
-        desc: str,
-        channel: int,
-        desig: str,
-        max_us: int,
-        min_us: int,
-        angle1_us: int,
-        angle1_deg: float,
-        angle2_us: float,
-        angle2_deg: float,
-        home_deg: float,
-    ) -> None:
-        self.config_mapping = {
-            "servo": servo,
-            "description": desc,
-            "channel": str(channel),
-            "designation": desig,
-            "max_us": str(max_us),
-            "min_us": str(min_us),
-            "angle1_us": str(angle1_us),
-            "angle1_deg": str(angle2_us),
-            "angle2_us": str(angle1_deg),
-            "angle2_deg": str(angle2_deg),
-            "home_deg": str(home_deg),
-        }
-
-    def enable_config(self) -> None:
-        self.config_mode = True
-        self.layout["config"].visible = True
-        self.refresh(layout=True)
-
-    def disable_config(self) -> None:
-        self.config_mode = False
-        self.layout["config"].visible = False
-        self.refresh(layout=True)
-
-    def _create_config_panel(self) -> None:
-        table = Table(show_lines=False)
-        table.add_column("Servo", width=5, justify="center")
-        table.add_column("Description", width=20, justify="center")
-        table.add_column("Channel", width=8, justify="center")
-        table.add_column("Designation", width=3, justify="center")
-        table.add_column("Max µs", width=6, justify="center")
-        table.add_column("Min µs", width=6, justify="center")
-        table.add_column("Angle1 µs", width=6, justify="center")
-        table.add_column("Angle1 ∠", width=6, justify="center")
-        table.add_column("Angle2 µs", width=6, justify="center")
-        table.add_column("Angle2 ∠", width=6, justify="center")
-        table.add_column("Home ∠", width=6, justify="center")
-        return table
-
     def render(self) -> Panel:
 
         self.servo_table.clear()
@@ -180,8 +135,18 @@ class Body(Widget):
                     continue
                 (key, desc, servo, us, angle) = self.mappings[row]
                 column_style = "reverse" if key in self.selection else "none"
+                hovered = self.highlight_key == key
+                key_text = Text.assemble(
+                    (
+                        f"({key.upper()})",
+                        "bold green reverse" if hovered else "bold yellow on default",
+                    ),
+                    # add metadata which says what to do when clicked, the 'key'
+                    # metadata is for hovering.
+                    meta={"@click": f"app.servo_key('{key}')", "key": key},
+                )
                 self.servo_table[table].add_row(
-                    "[b]({})[/b]".format(key.upper()),
+                    key_text,
                     desc,
                     servo,
                     us,
@@ -192,21 +157,135 @@ class Body(Widget):
         self.layout["left"].update(Align(self.servo_table[0], align="center"))
         self.layout["right"].update(Align(self.servo_table[1], align="center"))
 
-        if self.config_mode is True and len(self.config_mapping) != 0:
-            table = self._create_config_panel()
-            table.add_row(
-                self.config_mapping["servo"],
-                self.config_mapping["description"],
-                self.config_mapping["channel"],
-                self.config_mapping["designation"],
-                self.config_mapping["max_us"],
-                self.config_mapping["min_us"],
-                self.config_mapping["angle1_us"],
-                self.config_mapping["angle1_deg"],
-                self.config_mapping["angle2_us"],
-                self.config_mapping["angle2_deg"],
-                self.config_mapping["home_deg"],
-            )
-            self.layout["config"].update(Align(table, align="center"))
-
         return Panel(self.layout)
+
+    async def action_next_tab_index(self) -> None:
+        """Changes the focus to the next form field"""
+        if self.current_tab_index < len(self.tab_index) - 1:
+            self.current_tab_index += 1
+            await self._get_config_widget(
+                self.tab_index[self.current_tab_index]
+            ).focus()
+
+    async def action_previous_tab_index(self) -> None:
+        """Changes the focus to the previous form field"""
+        if self.current_tab_index > 0:
+            self.current_tab_index -= 1
+            await self._get_config_widget(
+                self.tab_index[self.current_tab_index]
+            ).focus()
+
+
+class ConfigArea(GridView):
+    def __init__(self) -> None:
+        super().__init__()
+
+        # Modes: "normal" or "config"
+        self.config_mode: bool = False
+        self.tab_index = ["servo", "max_us", "min_us"]
+        # list of config form entries, each entry is a dict of (desc, widget, focusable)
+        self.config_itemlist = []
+
+    async def on_mount(self) -> None:
+        ## JSP TESTING
+        # Create config widgets - the NULL values will be replace when
+        # update_config_mappings is called
+
+        self._add_config_entry("servo", "servo", "NULL")
+        self._add_config_entry("description", "description", "NULL")
+        self._add_config_entry("designation", "designation", "NULL")
+        self._add_config_entry("channel", "channel", "NULL")
+        self._add_config_entry("max_us", "maximum µs", "NULL")
+        self._add_config_entry("min_us", "minumum µs", "NULL")
+        self._add_config_entry("angle1_us", "Angle 1 µs", "NULL")
+        self._add_config_entry("angle1_deg", "Angle 1 ∠", "NULL")
+        self._add_config_entry("angle2_us", "Angle 2 µs", "NULL")
+        self._add_config_entry("angle2_deg", "Angle 2 ∠", "NULL")
+        self._add_config_entry("home_deg", "Home Position ∠", "NULL")
+
+        self.grid.set_align("center", "center")
+        self.grid.set_gap(1, 0)
+        self.grid.add_column("column", size=30)
+        self.grid.add_row("row", repeat=11, size=3)
+        for entry in self.config_itemlist:
+            self.grid.add_widget(entry["widget"])
+
+    def _add_config_entry(
+        self, shortname: Text, description: Text, value, focusable=True
+    ) -> None:
+        entry = {}
+        entry["shortname"] = shortname
+        entry["desc"] = description
+        entry["widget"] = TextInput(
+            name=shortname, placeholder=value, title=description
+        )
+        entry["focusable"] = focusable
+        self.config_itemlist.append(entry)
+
+    def _get_config_widget(self, shortname) -> None:
+        for item in self.config_itemlist:
+            if item["shortname"] == shortname:
+                return item["widget"]
+
+    def update_config_mapping(self, servo: Servos.Servo) -> None:
+        self.config_mapping = {
+            "servo": servo.lettermap,
+            "description": servo.description,
+            "channel": str(servo.channel),
+            "designation": servo.designation,
+            "max_us": str(servo.max_us),
+            "min_us": str(servo.min_us),
+            "angle1_us": str(servo.angle1_us),
+            "angle1_deg": str(servo.angle1_deg),
+            "angle2_us": str(servo.angle2_us),
+            "angle2_deg": str(servo.angle2_deg),
+            "home_deg": str(servo.home_deg),
+        }
+        # Update the placeholders in the config widgets
+        for name, value in self.config_mapping.items():
+            widget = self._get_config_widget(name)
+            widget.placeholder = value
+
+    def clear_config_mappings(self) -> None:
+        self.config_mapping = {}
+
+    def enable_config(self) -> None:
+        self.config_mode = True
+        self.config_edit_mode = False
+        # self.layout["config"].visible = True
+        self.refresh(layout=True)
+
+    def disable_config(self) -> None:
+        self.config_mode = False
+        self.config_edit_mode = False
+        # self.layout["config"].visible = False
+        self.refresh(layout=True)
+
+    async def enable_config_edit(self) -> None:
+        if self.config_mode is False:
+            raise AttributeError("cannot enable config_edit when not in config mode")
+        self.config_edit_mode = True
+        self.app.bindings = Bindings()
+        await self.app.bind("ctrl+c", "quit", show=False)
+        if self.app.relay is not None:
+            await self.app.bind(
+                "\\",
+                (
+                    "confirm_y_n('[b]Enable Servos?[/b] Y/N', 'toggle_relay', "
+                    "'pop_status', '[Enable Servos]')"
+                ),
+                "Enable Servos",
+            )
+        await self.app.bind(
+            "=",
+            "toggle_config_edit",
+            "Exit Config Edit",
+        )
+        # Bind the editing keys
+        await self.app.bind("enter", "body.submit", "Submit")
+        await self.app.bind("escape", "body.reset_focus", show=False)
+        await self.app.bind("ctrl+i", "body.next_tab_index", show=False)
+        await self.app.bind("shift+tab", "body.previous_tab_index", show=False)
+
+    def disable_config_edit(self) -> None:
+        self.config_edit_mode = False
