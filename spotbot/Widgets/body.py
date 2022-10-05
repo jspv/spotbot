@@ -62,7 +62,6 @@ class Body(Widget):
         self.app._action_targets.add("body")
 
     highlight_key: Reactive[str | None] = Reactive(None)
-    current_tab_index: Reactive[int] = Reactive(-1)
 
     async def watch_highlight_key(self, value) -> None:
         """If highlight key changes we need to regenerate the text."""
@@ -159,32 +158,34 @@ class Body(Widget):
 
         return Panel(self.layout)
 
-    async def action_next_tab_index(self) -> None:
-        """Changes the focus to the next form field"""
-        if self.current_tab_index < len(self.tab_index) - 1:
-            self.current_tab_index += 1
-            await self._get_config_widget(
-                self.tab_index[self.current_tab_index]
-            ).focus()
-
-    async def action_previous_tab_index(self) -> None:
-        """Changes the focus to the previous form field"""
-        if self.current_tab_index > 0:
-            self.current_tab_index -= 1
-            await self._get_config_widget(
-                self.tab_index[self.current_tab_index]
-            ).focus()
-
 
 class ConfigArea(GridView):
+
+    current_tab_index: Reactive[int] = Reactive(-1)
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
         # Modes: "normal" or "config"
         self.config_mode: bool = False
-        self.tab_index = ["servo", "max_us", "min_us"]
+        self.tab_index = [
+            "servo",
+            "description",
+            "designation",
+            "channel",
+            "max_us",
+            "min_us",
+            "angle1_us",
+            "angle1_deg",
+            "angle2_us",
+            "angle2_deg",
+            "home_deg",
+        ]
         # list of config form entries, each entry is a dict of (desc, widget, focusable)
         self.config_itemlist = []
+
+        # Allow the application to access actions in this namespace
+        self.app._action_targets.add("config")
 
     async def on_mount(self) -> None:
         ## JSP TESTING
@@ -216,9 +217,7 @@ class ConfigArea(GridView):
         entry = {}
         entry["shortname"] = shortname
         entry["desc"] = description
-        entry["widget"] = TextInput(
-            name=shortname, placeholder=value, title=description
-        )
+        entry["widget"] = TextInput(name=shortname, value=value, title=description)
         entry["focusable"] = focusable
         self.config_itemlist.append(entry)
 
@@ -241,10 +240,10 @@ class ConfigArea(GridView):
             "angle2_deg": str(servo.angle2_deg),
             "home_deg": str(servo.home_deg),
         }
-        # Update the placeholders in the config widgets
+        # Update the values in the config widgets
         for name, value in self.config_mapping.items():
             widget = self._get_config_widget(name)
-            widget.placeholder = value
+            widget.value = value
             widget.refresh()
 
     def clear_config_mappings(self) -> None:
@@ -261,18 +260,22 @@ class ConfigArea(GridView):
             "angle2_deg": "",
             "home_deg": "",
         }
-        # Update the placeholders in the config widgets
+        # Update the values in the config widgets
         for name, value in self.config_mapping.items():
             widget = self._get_config_widget(name)
-            widget.placeholder = value
+            widget.value = value
 
-    def enable_config(self) -> None:
+    async def enable_config(self) -> None:
         self.config_mode = True
         self.config_edit_mode = False
+        if self.visible is False:
+            await self.app.view.action_toggle(self.name)
 
-    def disable_config(self) -> None:
+    async def disable_config(self) -> None:
         self.config_mode = False
         self.config_edit_mode = False
+        if self.visible is True:
+            await self.app.view.action_toggle(self.name)
 
     async def enable_config_edit(self) -> None:
         if self.config_mode is False:
@@ -295,10 +298,26 @@ class ConfigArea(GridView):
             "Exit Config Edit",
         )
         # Bind the editing keys
-        await self.app.bind("enter", "body.submit", "Submit")
+        await self.app.bind("enter", "config.submit", "Submit")
         await self.app.bind("escape", "body.reset_focus", show=False)
-        await self.app.bind("ctrl+i", "body.next_tab_index", show=False)
-        await self.app.bind("shift+tab", "body.previous_tab_index", show=False)
+        await self.app.bind("ctrl+i", "config.next_tab_index", show=False)
+        await self.app.bind("shift+tab", "config.previous_tab_index", show=False)
 
     def disable_config_edit(self) -> None:
         self.config_edit_mode = False
+
+    async def action_next_tab_index(self) -> None:
+        """Changes the focus to the next form field"""
+        if self.current_tab_index < len(self.tab_index) - 1:
+            self.current_tab_index += 1
+            await self._get_config_widget(
+                self.tab_index[self.current_tab_index]
+            ).focus()
+
+    async def action_previous_tab_index(self) -> None:
+        """Changes the focus to the previous form field"""
+        if self.current_tab_index > 0:
+            self.current_tab_index -= 1
+            await self._get_config_widget(
+                self.tab_index[self.current_tab_index]
+            ).focus()

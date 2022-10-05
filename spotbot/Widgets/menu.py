@@ -180,7 +180,9 @@ class Menu(Widget):
         # Resize menu
         self._resize_menu()
 
-        self.visible = True
+        # self.visible = True
+        if self.visible is False:
+            await self.app.view.action_toggle(self.name)
 
         if self.refresh_callback is not None:
             self.refresh_callback()
@@ -243,7 +245,11 @@ class Menu(Widget):
         self.index = 0
 
         if self.menuname is None:
-            self.visible = False
+            # I do the following instead of setting self.visible
+            # as it seems to not leave artifacts when a bunch of things
+            # are changing at once.
+            if self.visible is True:
+                await self.app.view.action_toggle(self.name)
 
         if self.refresh_callback is not None:
             self.refresh_callback()

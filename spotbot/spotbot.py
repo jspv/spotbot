@@ -137,6 +137,7 @@ class MyApp(App):
         # Menu
         #
         self.menu = Menu(
+            name="mainmenu",
             key_style="bold blue on default",
             key_description_style="blue on default",
             menu_style="blue on default",
@@ -175,17 +176,13 @@ class MyApp(App):
                 await self.bind(row.lower(), f"servo_key('{row}')", "", show=False)
 
         # Layout the widgets - remember, order matters
-
         await self.view.dock(self.header, edge="top")
         await self.view.dock(self.footer, size=1, edge="bottom", z=1)
         await self.view.dock(self.status, size=3, edge="bottom", z=1)
-        await self.view.dock(self.menu, size=30, edge="left", name="menu", z=1)
+        await self.view.dock(self.menu, size=30, edge="left", z=1)
         await self.view.dock(self.bodypadding, size=4, edge="bottom")
         await self.view.dock(self.config, size=30, edge="right")
         await self.view.dock(self.body, edge="top")
-
-        # self.config.visible = False
-        # await self.view.dock(self.body, edge="top")
 
     #
     # Status bar push and pop - allows statusbar to be saved and recovered
@@ -276,6 +273,10 @@ class MyApp(App):
         key : str
             Hotkey pressed,
         """
+        # Ingore servo keys when menus are active
+        if self.menu.visible is True:
+            return
+
         self.body.key_press(key)
         if len(self.body.selection) == 0:
             self.unbind("up")
@@ -297,15 +298,14 @@ class MyApp(App):
         key : str
             Hotkey pressed,
         """
-        # if the same key was selected, deselect the servo
-        if [key] == self.body.get_selection():
-            self.config.clear_config_mappings()
-            self.body.clear_selection()
-            self.body.refresh(layout=True)
-        else:
+
+        if self.menu.visible is True:
+            return
+
+        # if the same key was selected, do nothing
+        if [key] != self.body.get_selection():
             self.config.update_config_mapping(self.servos[key])
             self.body.key_press(key)
-            self.footer.regenerate()
 
     async def action_toggle_servo_mode(self) -> None:
         if self.servo_mode == "angle":
@@ -346,8 +346,7 @@ class MyApp(App):
             self.pop_status()
             self.config.clear_config_mappings()
             self.body.clear_selection()
-            self.config.disable_config()
-            await self.view.action_toggle("config")
+            await self.config.disable_config()
 
         else:  # enable config mode
             self.push_status()
@@ -386,9 +385,7 @@ class MyApp(App):
                     )
             self.status.regenerate_status_from_dict = False
             self.footer.regenerate()
-
-            await self.view.action_toggle("config")
-            self.config.enable_config()
+            await self.config.enable_config()
 
     async def action_servo_increment(self) -> None:
         for servoletter in self.body.selection:
