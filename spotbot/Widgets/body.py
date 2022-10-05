@@ -177,8 +177,8 @@ class Body(Widget):
 
 
 class ConfigArea(GridView):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
 
         # Modes: "normal" or "config"
         self.config_mode: bool = False
@@ -191,17 +191,17 @@ class ConfigArea(GridView):
         # Create config widgets - the NULL values will be replace when
         # update_config_mappings is called
 
-        self._add_config_entry("servo", "servo", "NULL")
-        self._add_config_entry("description", "description", "NULL")
-        self._add_config_entry("designation", "designation", "NULL")
-        self._add_config_entry("channel", "channel", "NULL")
-        self._add_config_entry("max_us", "maximum µs", "NULL")
-        self._add_config_entry("min_us", "minumum µs", "NULL")
-        self._add_config_entry("angle1_us", "Angle 1 µs", "NULL")
-        self._add_config_entry("angle1_deg", "Angle 1 ∠", "NULL")
-        self._add_config_entry("angle2_us", "Angle 2 µs", "NULL")
-        self._add_config_entry("angle2_deg", "Angle 2 ∠", "NULL")
-        self._add_config_entry("home_deg", "Home Position ∠", "NULL")
+        self._add_config_entry("servo", "servo", "")
+        self._add_config_entry("description", "description", "")
+        self._add_config_entry("designation", "designation", "")
+        self._add_config_entry("channel", "channel", "")
+        self._add_config_entry("max_us", "maximum µs", "")
+        self._add_config_entry("min_us", "minumum µs", "")
+        self._add_config_entry("angle1_us", "Angle 1 µs", "")
+        self._add_config_entry("angle1_deg", "Angle 1 ∠", "")
+        self._add_config_entry("angle2_us", "Angle 2 µs", "")
+        self._add_config_entry("angle2_deg", "Angle 2 ∠", "")
+        self._add_config_entry("home_deg", "Home Position ∠", "")
 
         self.grid.set_align("center", "center")
         self.grid.set_gap(1, 0)
@@ -245,21 +245,34 @@ class ConfigArea(GridView):
         for name, value in self.config_mapping.items():
             widget = self._get_config_widget(name)
             widget.placeholder = value
+            widget.refresh()
 
     def clear_config_mappings(self) -> None:
-        self.config_mapping = {}
+        self.config_mapping = {
+            "servo": "",
+            "description": "",
+            "channel": "",
+            "designation": "",
+            "max_us": "",
+            "min_us": "",
+            "angle1_us": "",
+            "angle1_deg": "",
+            "angle2_us": "",
+            "angle2_deg": "",
+            "home_deg": "",
+        }
+        # Update the placeholders in the config widgets
+        for name, value in self.config_mapping.items():
+            widget = self._get_config_widget(name)
+            widget.placeholder = value
 
     def enable_config(self) -> None:
         self.config_mode = True
         self.config_edit_mode = False
-        # self.layout["config"].visible = True
-        self.refresh(layout=True)
 
     def disable_config(self) -> None:
         self.config_mode = False
         self.config_edit_mode = False
-        # self.layout["config"].visible = False
-        self.refresh(layout=True)
 
     async def enable_config_edit(self) -> None:
         if self.config_mode is False:

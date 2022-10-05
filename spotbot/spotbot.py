@@ -80,7 +80,8 @@ class MyApp(App):
         """Create and dock the widgets."""
         self.header = Header(style="bold blue")
         self.body = Body(name="body")
-        self.config = ConfigArea()
+        self.config = ConfigArea(name="config")
+        self.config.visible = False
         self.bodypadding = Placeholder(name="bodypadding")  # force body up
 
         # Status and footer will be on layer 1 and will resize with the menu,
@@ -173,23 +174,17 @@ class MyApp(App):
                 await self.bind(row, f"servo_key('{row}')", "", show=False)
                 await self.bind(row.lower(), f"servo_key('{row}')", "", show=False)
 
-        # Layout the widgets
-
-        # self.bodyarea = GridView()
-        # self.bodyarea.grid.add_column("body", size=60)
-        # self.bodyarea.grid.add_column("config", size=20)
-        # self.bodyarea.grid.add_row("row")
-        # self.bodyarea.grid.add_widget(self.body)
-        # self.bodyarea.grid.add_widget(self.config)
+        # Layout the widgets - remember, order matters
 
         await self.view.dock(self.header, edge="top")
         await self.view.dock(self.footer, size=1, edge="bottom", z=1)
         await self.view.dock(self.status, size=3, edge="bottom", z=1)
         await self.view.dock(self.menu, size=30, edge="left", name="menu", z=1)
         await self.view.dock(self.bodypadding, size=4, edge="bottom")
-        # await self.view.dock(self.bodyarea, edge="top")
-        await self.view.dock(self.body, size=130, edge="left")
-        await self.view.dock(self.config, size=30, edge="left")
+        await self.view.dock(self.config, size=30, edge="right")
+        await self.view.dock(self.body, edge="top")
+
+        # self.config.visible = False
         # await self.view.dock(self.body, edge="top")
 
     #
@@ -305,7 +300,7 @@ class MyApp(App):
         # if the same key was selected, deselect the servo
         if [key] == self.body.get_selection():
             self.config.clear_config_mappings()
-            self.config.clear_selection()
+            self.body.clear_selection()
             self.body.refresh(layout=True)
         else:
             self.config.update_config_mapping(self.servos[key])
@@ -351,11 +346,13 @@ class MyApp(App):
             self.pop_status()
             self.config.clear_config_mappings()
             self.body.clear_selection()
-            self.body.refresh(layout=True)
             self.config.disable_config()
-        else:
+            await self.view.action_toggle("config")
+
+        else:  # enable config mode
             self.push_status()
             self.status.message = "Config Mode"
+            self.body.multi_select = False
             self.body.clear_selection()
 
             # Bindings for config mode
@@ -390,10 +387,7 @@ class MyApp(App):
             self.status.regenerate_status_from_dict = False
             self.footer.regenerate()
 
-            # Make sure to enable/disable config last, it will cause
-            # a refresh of the body which will cause artifacts unless it
-            # is done last.
-            self.body.refresh(layout=True)
+            await self.view.action_toggle("config")
             self.config.enable_config()
 
     async def action_servo_increment(self) -> None:
