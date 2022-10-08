@@ -304,7 +304,7 @@ class MyApp(App):
 
         # if the same key was selected, do nothing
         if [key] != self.body.get_selection():
-            self.config.update_config_mapping(self.servos[key])
+            await self.config.update_config_mapping(self.servos[key])
             self.body.key_press(key)
 
     async def action_toggle_servo_mode(self) -> None:
@@ -344,15 +344,16 @@ class MyApp(App):
 
         if self.config.config_mode is True:
             self.pop_status()
-            self.config.clear_config_mappings()
-            self.body.clear_selection()
+            await self.config.clear_config_mappings()
             await self.config.disable_config()
 
         else:  # enable config mode
             self.push_status()
             self.status.message = "Config Mode"
             self.body.multi_select = False
-            self.body.clear_selection()
+            # can only config one item, so clear if multiple selected
+            if len(self.body.get_selection()) > 1:
+                await self.body.clear_selection()
 
             # Bindings for config mode
             self.bindings = Bindings()
@@ -386,6 +387,10 @@ class MyApp(App):
             self.status.regenerate_status_from_dict = False
             self.footer.regenerate()
             await self.config.enable_config()
+            if len(self.body.get_selection()) == 1:
+                await self.config.update_config_mapping(
+                    self.servos[self.body.get_selection()[0]]
+                )
 
     async def action_servo_increment(self) -> None:
         for servoletter in self.body.selection:
@@ -442,7 +447,11 @@ class MyApp(App):
 
     async def action_toggle_config_edit(self) -> None:
         if self.config.config_edit_mode is True:
-            self.config.disable_config_edit()
+            await self.config.disable_config_edit()
+            if len(self.body.get_selection()) == 1:
+                await self.config.update_config_mapping(
+                    self.servos[self.body.get_selection()[0]]
+                )
             self.pop_status()
         else:
             self.push_status()

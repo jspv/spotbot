@@ -11,12 +11,10 @@ from rich.align import Align
 from rich.layout import Layout
 from rich.style import StyleType
 import rich.repr
-
+import sys
 from textual.views import GridView
 from textual_inputs import TextInput
-
 from .. import Servos
-
 from typing import Union, Tuple
 
 
@@ -49,9 +47,6 @@ class Body(Widget):
         # Layout of servos - positions the servo entries in the tables
         self.servo_layout = []
 
-        # currently selected servos
-        self.selection = []
-
         self.multi_select = False
 
         # Data to populate the tables
@@ -60,6 +55,9 @@ class Body(Widget):
 
         # Allow the application to access actions in this namespace
         self.app._action_targets.add("body")
+
+    # currently selected servos
+    selection: Reactive[list] = []
 
     highlight_key: Reactive[str | None] = Reactive(None)
 
@@ -111,7 +109,7 @@ class Body(Widget):
     def get_selection(self) -> list:
         return self.selection
 
-    def clear_selection(self) -> None:
+    async def clear_selection(self) -> None:
         self.selection.clear()
 
     def update_servos(self, mappings: dict) -> None:
@@ -188,7 +186,6 @@ class ConfigArea(GridView):
         self.app._action_targets.add("config")
 
     async def on_mount(self) -> None:
-        ## JSP TESTING
         # Create config widgets - the NULL values will be replace when
         # update_config_mappings is called
 
@@ -204,6 +201,7 @@ class ConfigArea(GridView):
         self._add_config_entry("angle2_deg", "Angle 2 ∠", "")
         self._add_config_entry("home_deg", "Home Position ∠", "")
 
+        # layout the widgets in a grid
         self.grid.set_align("center", "center")
         self.grid.set_gap(1, 0)
         self.grid.add_column("column", size=30)
@@ -222,11 +220,13 @@ class ConfigArea(GridView):
         self.config_itemlist.append(entry)
 
     def _get_config_widget(self, shortname) -> None:
+        """return widget given the shortname"""
         for item in self.config_itemlist:
             if item["shortname"] == shortname:
                 return item["widget"]
 
-    def update_config_mapping(self, servo: Servos.Servo) -> None:
+    async def update_config_mapping(self, servo: Servos.Servo) -> None:
+        """Load the servo data into the config widgets"""
         self.config_mapping = {
             "servo": servo.lettermap,
             "description": servo.description,
@@ -246,7 +246,8 @@ class ConfigArea(GridView):
             widget.value = value
             widget.refresh()
 
-    def clear_config_mappings(self) -> None:
+    async def clear_config_mappings(self) -> None:
+        """Clear the servo data from the config widgets"""
         self.config_mapping = {
             "servo": "",
             "description": "",
@@ -266,12 +267,18 @@ class ConfigArea(GridView):
             widget.value = value
 
     async def enable_config(self) -> None:
+        """Turn on the config widget area"""
         self.config_mode = True
         self.config_edit_mode = False
         if self.visible is False:
             await self.app.view.action_toggle(self.name)
 
+        # set all the widgets to be non-focusable until edit is enabled
+        for item in self.config_itemlist:
+            item["widget"].can_focus = False
+
     async def disable_config(self) -> None:
+        """Turn off the config widget area"""
         self.config_mode = False
         self.config_edit_mode = False
         if self.visible is True:
@@ -293,31 +300,44 @@ class ConfigArea(GridView):
                 "Enable Servos",
             )
         await self.app.bind(
-            "=",
+            "escape",
             "toggle_config_edit",
-            "Exit Config Edit",
+            "Cancel Config Edit",
         )
         # Bind the editing keys
         await self.app.bind("enter", "config.submit", "Submit")
-        await self.app.bind("escape", "body.reset_focus", show=False)
+        # await self.app.bind("escape", "body.reset_focus", show=False)
         await self.app.bind("ctrl+i", "config.next_tab_index", show=False)
         await self.app.bind("shift+tab", "config.previous_tab_index", show=False)
 
-    def disable_config_edit(self) -> None:
+        # set all the focusable widgets to be focusable
+        for item in self.config_itemlist:
+            if item["focusable"] is True:
+                item["widget"].can_focus = True
+
+        # set focus to the first tiem
+        await self.config_itemlist[0]["widget"].focus()
+
+    async def disable_config_edit(self) -> None:
         self.config_edit_mode = False
+        await self.focus()
+        # set all the focusable widgets to be non-focusable
+        for item in self.config_itemlist:
+            if item["focusable"] is True:
+                item["widget"].can_focus = False
 
     async def action_next_tab_index(self) -> None:
         """Changes the focus to the next form field"""
         if self.current_tab_index < len(self.tab_index) - 1:
             self.current_tab_index += 1
-            await self._get_config_widget(
-                self.tab_index[self.current_tab_index]
-            ).focus()
+        else:
+            self.current_tab_index = 0
+        await self._get_config_widget(self.tab_index[self.current_tab_index]).focus()
 
     async def action_previous_tab_index(self) -> None:
         """Changes the focus to the previous form field"""
         if self.current_tab_index > 0:
             self.current_tab_index -= 1
-            await self._get_config_widget(
-                self.tab_index[self.current_tab_index]
-            ).focus()
+        else:
+            self.current_tab_index = len(self.tab_index) - 1
+        await self._get_config_widget(self.tab_index[self.current_tab_index]).focus()
