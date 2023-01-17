@@ -1,41 +1,29 @@
 from textual import events
-from textual.widget import Widget
+from textual import log
 from textual.reactive import Reactive
+from textual.widgets import Static
 from rich.text import Text
 from rich.style import StyleType
 from rich.padding import Padding
-from rich.panel import Panel
 from rich.console import RenderableType
 from typing import Union, Callable
 
 
-class Status(Widget):
-    def __init__(
-        self,
-        *args,
-        style: StyleType = "yellow on default",
-        title: Union[Text, str] = "",
-        title_align="center",
-        **kwargs,
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.style = style
-        self.title = title
-        self.title_align = title_align
-
-    # The following will react automatically to changes
-    style: Reactive[StyleType] = Reactive("default on default")
-    title: Reactive[str] = Reactive("")
-    regenerate_status_from_dict: Reactive[bool] = Reactive(True)
+class Status(Static):
 
     # Hold dict of statuses to report on
     _entries = {}
-    message: RenderableType = "none"
+    message: RenderableType | None = None
+    _regenerate_status_from_dict: Reactive(bool) = Reactive(False)
     status_stack = []  # stack of status settings
 
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
     async def on_mount(self, event: events.Mount) -> None:
-        """Refresh status evey second"""
-        self.set_interval(1.0, callback=self.refresh)
+        # """Refresh status every second"""
+        # self.set_interval(1.0, callback=self.refresh)
+        pass
 
     def add_entry(
         self,
@@ -79,11 +67,14 @@ class Status(Widget):
             value_style = old_value_style
         self._entries[key] = (keymsg, key_style, value, value_style)
 
-    def render(self) -> Panel:
-        if self.regenerate_status_from_dict is True:
+    def update_status(self) -> None:
+        self._regenerate_status_from_dict = True
+
+    def render(self) -> RenderableType:
+        if self._regenerate_status_from_dict is True or self.message is None:
             # build the text container
             self.message = Text(
-                style=self.style,
+                # style=self.style,
                 no_wrap=True,
                 overflow="ellipsis",
                 justify="left",
@@ -94,21 +85,12 @@ class Status(Widget):
             for (keymsg, key_style, value, value_style) in self._entries.values():
                 if count > 0:
                     # Print a seperator between items
-                    self.message.append(" | ", self.style)
+                    self.message.append(" | ")
                 count += 1
                 self.message.append_text(Text.from_markup(keymsg, style=key_style))
-                self.message.append(": ", self.style)
+                self.message.append(": ")
                 if isinstance(value, Callable):
                     value = value()
                 self.message.append_text(Text.from_markup(value, style=value_style))
-
-        return Panel(
-            Padding(
-                self.message,
-                pad=(0, 1, 0, 2),
-                style=self.style,
-                expand=True,
-            ),
-            title=self.title,
-            title_align=self.title_align,
-        )
+        self._regenerate_status_from_dict = False
+        return Padding(self.message, pad=(0, 1, 0, 2), expand=True)

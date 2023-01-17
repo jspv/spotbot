@@ -1,70 +1,61 @@
-from textual import events
-from .App import App
-from textual.widgets import Header, Placeholder
-from textual.binding import Bindings
-from .Widgets.footer import Footer
-from .Widgets.status import Status
-from .Widgets.menu import Menu
+from textual.app import App, ComposeResult
+from textual.containers import Container, Grid, Horizontal
+from textual.widgets import Footer, Header, Static, Button, Placeholder
 from .Widgets.body import Body
-from .Widgets.body import ConfigArea
-from textual.views import GridView
+from .Widgets.status import Status
+from .Widgets.dialog import Dialog
+from textual.screen import Screen
+from textual.binding import Binding, Bindings
+from textual import log
+from textual.reactive import var
 from rich.text import Text
 
-from . import add_menus
 from . import file_utils
+from . import GPIO as gpio
 from .utils import Utils
 
-from . import GPIO as gpio
+import sys
+
+# atexit allows for registering exit handlers, allows us to ensure GPIO conneciton
+# gets closed on exit.
 import atexit
 
-import importlib
-import sys
-from os.path import exists
-from rich import print
-import rich.traceback
+import rich
 import argparse
+import importlib
 
 
-def errprint(*a):
-    print(*a, file=sys.stderr)
+class Spotbot(App):
 
+    CSS_PATH = "spotbot.css"
 
-class MyApp(App):
-    """An example of a very simple Textual App"""
+    """Bind keys when the app loads (but before entering application mode)"""
+
+    BINDINGS = [
+        Binding(
+            key="full_stop", action="main_menu", description="Menu", key_display="."
+        ),
+        (
+            "q",
+            "confirm_y_n('[bold]Quit?[/bold] Y/N', 'quit', 'close_dialog', '[Quit]')",
+            "Quit",
+        ),
+        (
+            "backslash",
+            (
+                "confirm_y_n('[b]Enable Servos?[/b] Y/N', 'toggle_relay', "
+                "'close_dialog', '[Enable Servos]')"
+            ),
+            "Enable Servos",
+        ),
+    ]
 
     status_stack = []
     menu_stack = []
 
-    # on_load runs before the app is displayed
-    async def on_load(self, event: events.Load) -> None:
-
-        """Bind keys with the app loads (but before entering application mode)"""
-        await self.bind(".", "main_menu", "Menu")
-        await self.bind(
-            "q",
-            "confirm_y_n('[bold]Quit?[/bold] Y/N', 'quit', 'pop_status', '[Quit]')",
-            "Quit",
-        )
-        await self.bind(
-            "=",
-            (
-                "confirm_y_n('[b]Set servos to home position[/b] Y/N', "
-                "'set_servos_home','pop_status', '[Home]')"
-            ),
-            "Home Servos",
-        )
-
-        await self.bind("m", "toggle_multi_select", "Multi-Select")
-
-        if self.relay is not None:
-            await self.bind(
-                "\\",
-                (
-                    "confirm_y_n('[b]Enable Servos?[/b] Y/N', 'toggle_relay', "
-                    "'pop_status', '[Enable Servos]')"
-                ),
-                "Enable Servos",
-            )
+    def __init__(self, *args, **kwargs) -> None:
+        log(sys.argv)
+        self.parse_args_and_initialize()
 
         # access convenience utilites
         self.utils = Utils(self)
@@ -75,135 +66,173 @@ class MyApp(App):
         self.us_increment = 100
         self.angle_increment = 20.0
 
-    # on mount is what is run when the applicaiton starts (after on_load)
-    async def on_mount(self, event: events.Mount) -> None:
-        """Create and dock the widgets."""
-        self.header = Header(style="bold blue")
-        self.body = Body(name="body")
-        self.config = ConfigArea(name="config")
-        self.config.visible = False
-        self.bodypadding = Placeholder(name="bodypadding")  # force body up
-
-        # Status and footer will be on layer 1 and will resize with the menu,
-        # Body will be on layer 0 and will not.
-
-        # Status line
-        self.status = Status(style="yellow on default")
-
-        self.status.add_entry(
-            "mode", "Mode", "∠", key_style="bold", value_style="bold blue"
-        )
-
-        self.status.add_entry(
-            "angle_increment",
-            "∠ Increment",
-            self.utils.get_angle_increment,
-            key_style="bold blue",
-            value_style="bold blue",
-        )
-
-        self.status.add_entry(
-            "us_increment",
-            "µs Increment",
-            self.utils.get_us_increment,
-        )
-
-        if self.relay is not None:
-            self.status.add_entry(
-                "relay_status", "Servo Power", self.utils.is_relay_on_off
-            )
-
-        self.status.add_entry(
-            "multi-select", "Multi-Select", self.utils.get_multi_select
-        )
-
-        self.status.add_entry(
-            "time",
-            "Time",
-            self.utils.status_clock,
-        )
-        self.status.layout_offset_y  # make room for footer
-
-        #
-        # Footer
-        #
-        self.footer = Footer(
-            key_style="bold blue on default",
-            key_hover_style="bold blue reverse",
-            key_description_style="gray on default",
-        )
-
-        #
-        # Menu
-        #
-        self.menu = Menu(
-            name="mainmenu",
-            key_style="bold blue on default",
-            key_description_style="blue on default",
-            menu_style="blue on default",
-            refresh_callback=self.footer.regenerate,
-            app=self,
-        )
-        self.menu.visible = False
-
-        # Load the menus
-        add_menus.add_menus(self.menu)
-
-        # # Build servo data
+        # Dict to store servo data
         self.servo_data = {}
 
-        #
-        # Main Body
-        #
+        super().__init__(*args, **kwargs)
+
+    def parse_args_and_initialize(self):
+        DEFAULT_CONFIG = "config.yml"
+
+        parser = argparse.ArgumentParser()
+        parser.add_argument(
+            "--config",
+            help="Configuration file for serial access to servo controller, if "
+            + "'{}' exists it will be loaded automatically ".format(DEFAULT_CONFIG)
+            + "unless this parameter specifies a different config file",
+            default=DEFAULT_CONFIG,
+        )
+
+        parser.add_argument(
+            "--servoconfig",
+            help="Override servo config file specified in {}".format(DEFAULT_CONFIG),
+        )
+
+        parser.add_argument(
+            "--poseconfig",
+            help="Override pose configuration file specified in {}".format(
+                DEFAULT_CONFIG
+            ),
+        )
+
+        parser.add_argument(
+            "-t",
+            "--testservo",
+            help=(
+                "testing - don't connect to server controller, serial settings are"
+                " ignored and serial activity is stubbed out."
+            ),
+            action="store_true",
+        )
+
+        parser.add_argument(
+            "-v", "--verbose", help="Increase verbosity", action="store_true"
+        )
+
+        # args = parser.parse_args()
+        args, unknown = parser.parse_known_args()
+        print(f"Received known args: {args}")
+        print(f"Received unknown args: {unknown}")
+
+        if args.verbose is True:  # smart errors
+            rich.traceback.install(show_locals=True)
+
+        configfile = file_utils.ConfigFile(args.config)
+
+        if args.servoconfig is None:
+            args.servoconfig = configfile.config["servo_config"]
+
+        if args.poseconfig is None:
+            args.poseconfig = configfile.config["pose_config"]
+
+        # import the correct servo library based on the servoboard
+        servolib = importlib.import_module(
+            ".{}".format(configfile.config["servoboard"]), package="spotbot.Servo"
+        )
+
+        # If there is a relay to power the servos, configure it with GPIO
+        if "relay_settings" in configfile.config:
+            self.relay = gpio.Relay(
+                configfile.config["relay_settings"]["gpio"],
+                configfile.config["relay_settings"]["active_high"],
+            )
+            atexit.register(self.relay.close)
+        else:
+            self.relay = None
+
+        # Connect to the servo board and get a controller object
+        self.servo_ctl = (
+            servolib.ServoController(**configfile.config["serial_settings"])
+            if args.testservo is False
+            else None
+        )
+
+        # load servo configuration file
+        self.servo_configfile = file_utils.ServoConfiFile(
+            args.servoconfig, self.servo_ctl
+        )
+        self.servos = self.servo_configfile.load()
+
+    def run(self, *args, **kwargs):
+        try:
+            super().run(*args, **kwargs)
+        # naked exception to catch any failure and ensure we shut down the relay
+        except:  # noqa E722
+            if self.relay is not None:
+                self.relay.close()
+            raise
+
+    def loadargs(self, **kwargs) -> None:
+        """Transform kwargs into self.arg values"""
+        for (k, v) in kwargs.items():
+            setattr(self, k, v)
+
+    def push_status(self) -> None:
+        """Save current status and bindings"""
+        # hack - changing bindings not currently supported in Textual
+        self.status_stack.append((self._bindings))
+
+    def pop_status(self) -> None:
+        """Restore last status and bindings"""
+        # hack - changing bindings not currently supported in Textual
+        if len(self.status_stack) > 0:
+            (self._bindings) = self.status_stack.pop()
+
+    def compose(self) -> ComposeResult:
+        # describe the display table layout
+        servo_layout = [
+            ["A", "B", "C", None, "D", "E", "F"],
+            ["G", "H", "I", None, "J", "K", "L"],
+        ]
+        self.dialog = Dialog(id="modal_dialog")
+        self.footer = Footer()
+        self.body = Body(servo_layout, id="p1")
+        self.status = Status(id="status")
+
+        yield Header()
+        yield Container(
+            Horizontal(self.body, Placeholder(id="p2")),
+            # self.body,
+            self.dialog,
+            self.status,
+            id="mainscreen",
+        )
+        # yield ConfigArea()
+        yield self.footer
+
+    def action_confirm_y_n(
+        self, message: str, confirm_action: str, noconfirm_action: str, title: str = ""
+    ) -> None:
+        """Build Yes/No Modal Dialog and process callbacks."""
+        dialog = self.query_one("#modal_dialog", Dialog)
+        dialog.confirm_action = confirm_action
+        dialog.noconfirm_action = noconfirm_action
+        dialog.set_message(message)
+        dialog.show_dialog()
+
+    def on_mount(self) -> None:
+        # Set the text of the dialog message and buttons
+        self.status.add_entry(
+            key="servo",
+            keymsg="Servo Relay",
+            value=lambda: "[r]On[/r] :warning-emoji: "
+            if self.relay.is_active()
+            else "Off",
+        )
+        self.status.add_entry(
+            key="multi",
+            keymsg="Multiselect",
+            value=lambda: "[r]On[/r] " if self.body.multi_select else "Off",
+        )
+        self.status.regenerate_status_from_dict = True
 
         # load the servo tables with the current servo data
         for servoletter in [chr(i) for i in range(ord("A"), ord("R"))]:
             if servoletter in self.servos:
                 self.refresh_servo_data(servoletter)
 
-        # describe the display table layout
-        self.body.servo_layout = [
-            ["A", "B", "C", None, "D", "E", "F"],
-            ["G", "H", "I", None, "J", "K", "L"],
-        ]
-
-        # Bindings for servo hot-keys
-        for table in self.body.servo_layout:
-            for row in table:
-                if row is None:
-                    continue
-                await self.bind(row, f"servo_key('{row}')", "", show=False)
-                await self.bind(row.lower(), f"servo_key('{row}')", "", show=False)
-
-        # Layout the widgets - remember, order matters
-        await self.view.dock(self.header, edge="top")
-        await self.view.dock(self.footer, size=1, edge="bottom", z=1)
-        await self.view.dock(self.status, size=3, edge="bottom", z=1)
-        await self.view.dock(self.menu, size=30, edge="left", z=1)
-        await self.view.dock(self.bodypadding, size=4, edge="bottom")
-        await self.view.dock(self.config, size=30, edge="right")
-        await self.view.dock(self.body, edge="top")
-
-    #
-    # Status bar push and pop - allows statusbar to be saved and recovered
-    #
-    def push_status(self) -> None:
-        """Save current status and bindings"""
-        self.status_stack.append(
-            (self.status.message, self.bindings, self.status.title)
-        )
-
-    def pop_status(self) -> None:
-        """Recover last status and bindings"""
-        if len(self.status_stack) > 0:
-            (
-                self.status.message,
-                self.bindings,
-                self.status.title,
-            ) = self.status_stack.pop()
-            self.footer.regenerate()  # Regenerate footter
-        if len(self.status_stack) == 0:
-            self.status.regenerate_status_from_dict = True
+        # set focus to the body widget
+        self.body.focus()
 
     def refresh_servo_data(self, servoletter: str) -> None:
         """Update the servo data table for a specific servo"""
@@ -217,340 +246,54 @@ class MyApp(App):
         )
         self.body.update_servos(self.servo_data)
 
-    #
-    # Actions
-    #
-    async def action_confirm_y_n(
-        self, message: str, confirm_action: str, noconfirm_action: str, title: str = ""
-    ) -> None:
-        """Build Yes/No Modal Dialog and process callbacks."""
+    ###########
+    # Actions #
+    ###########
 
-        # push current state on to the stack
-        self.push_status()
-
-        # Set new state
-        self.status.message = message
-        self.status.title = title
-        # Tell status widget to not use the normal statuses
-        self.status.regenerate_status_from_dict = False
-        self.bindings = Bindings()
-        await self.bind("ctrl+c", "quit", show=False)
-        await self.bind("y", confirm_action, "Yes")
-        await self.bind("n", noconfirm_action, "No")
-
-        # Refresh footer
-        self.footer.regenerate()
-
-    async def action_pop_status(self) -> None:
-        """Back out and return to last status"""
-        self.pop_status()
-
-    async def action_main_menu(self) -> None:
-        """Launch the main menu"""
-        await self.menu.load_menu("main")
-
-    async def action_tbd(self) -> None:
-        """Simulate a menu-action"""
-        await self.menu.pop_menu(pop_all=True)
-
-    async def action_set_us_increment(self, increment: int) -> None:
-        """change the increment value for microseconds"""
-        self.us_increment = increment
-        self.status.refresh()
-        await self.menu.pop_menu(pop_all=True)
-
-    async def action_set_angle_increment(self, increment: float) -> None:
-        """change the increment value for angles"""
-        self.angle_increment = increment
-        self.status.refresh()
-        await self.menu.pop_menu(pop_all=True)
-
-    async def action_servo_key(self, key: str) -> None:
-        """Process servo hotkey
-
-        Parameters
-        ----------
-        key : str
-            Hotkey pressed,
-        """
-        # Ingore servo keys when menus are active
-        if self.menu.visible is True:
-            return
-
-        self.body.key_press(key)
-        if len(self.body.selection) == 0:
-            self.unbind("up")
-            self.unbind("down")
-            self.unbind("0")
-            self.footer.regenerate()
-        else:
-            symbol = "∠" if self.servo_mode == "angle" else "µs"
-            await self.bind("up", "servo_increment", f"Increment {symbol}")
-            await self.bind("down", "servo_decrement", f"Decrement {symbol}")
-            await self.bind("0", "servo_off", "Servo Off")
-            self.footer.regenerate()
-
-    async def action_servo_config_key(self, key: str) -> None:
-        """Process servo hotkey when in servo-config menu
-
-        Parameters
-        ----------
-        key : str
-            Hotkey pressed,
-        """
-
-        if self.menu.visible is True:
-            return
-
-        # if the same key was selected, do nothing
-        if [key] != self.body.get_selection():
-            await self.config.update_config_mapping(self.servos[key])
-            self.body.key_press(key)
-
-    async def action_toggle_servo_mode(self) -> None:
-        if self.servo_mode == "angle":
-            self.servo_mode = "us"
-            self.status.update_entry("mode", "µs")
-            self.status.update_entry(
-                "angle_increment", key_style="none", value_style="none"
-            )
-            self.status.update_entry(
-                "us_increment", key_style="bold blue", value_style="bold blue"
-            )
-        else:
-            self.servo_mode = "angle"
-            self.status.update_entry("mode", "∠")
-            self.status.update_entry(
-                "us_increment", key_style="none", value_style="none"
-            )
-            self.status.update_entry(
-                "angle_increment", key_style="bold blue", value_style="bold blue"
-            )
-
-        self.status.refresh()
-        await self.menu.pop_menu(pop_all=True)
-
-        # Refresh bindings if needed
-        if len(self.body.selection) != 0:
-            symbol = "∠" if self.servo_mode == "angle" else "µs"
-            await self.bind("up", "servo_increment", f"Increment {symbol}")
-            await self.bind("down", "servo_decrement", f"Decrement {symbol}")
-            self.footer.regenerate()
-
-    async def action_toggle_config_mode(self) -> None:
-        # clear the menu, do this first so bindings are returned to normal
-        # before saving them.
-        await self.menu.pop_menu(pop_all=True)
-
-        if self.config.config_mode is True:
-            self.pop_status()
-            await self.config.clear_config_mappings()
-            await self.config.disable_config()
-
-        else:  # enable config mode
-            self.push_status()
-            self.status.message = "Config Mode"
-            self.body.multi_select = False
-            # can only config one item, so clear if multiple selected
-            if len(self.body.get_selection()) > 1:
-                await self.body.clear_selection()
-
-            # Bindings for config mode
-            self.bindings = Bindings()
-            await self.bind("ctrl+c", "quit", show=False)
-            await self.bind(".", "main_menu", "Menu")
-            await self.bind(
-                "q",
-                "confirm_y_n('[bold]Quit?[/bold] Y/N', 'quit', 'pop_status', '[Quit]')",
-                "Quit",
-            )
-            await self.bind("=", "toggle_config_edit", "Toggle Edit")
-            if self.relay is not None:
-                await self.bind(
-                    "\\",
-                    (
-                        "confirm_y_n('[b]Enable Servos?[/b] Y/N', 'toggle_relay', "
-                        "'pop_status', '[Enable Servos]')"
-                    ),
-                    "Enable Servos",
-                )
-
-            # Bindings for servo hot-keys
-            for table in self.body.servo_layout:
-                for row in table:
-                    if row is None:
-                        continue
-                    await self.bind(row, f"servo_config_key('{row}')", "", show=False)
-                    await self.bind(
-                        row.lower(), f"servo_config_key('{row}')", "", show=False
-                    )
-            self.status.regenerate_status_from_dict = False
-            self.footer.regenerate()
-            await self.config.enable_config()
-            if len(self.body.get_selection()) == 1:
-                await self.config.update_config_mapping(
-                    self.servos[self.body.get_selection()[0]]
-                )
-
-    async def action_servo_increment(self) -> None:
-        for servoletter in self.body.selection:
-            if self.servo_mode == "us":
-                self.servos[servoletter].position_us = (
-                    self.servos[servoletter].position_us + self.us_increment
-                )
-            else:
-                self.servos[servoletter].position_angle = (
-                    self.servos[servoletter].position_angle + self.angle_increment
-                )
-            self.refresh_servo_data(servoletter)
-
-    async def action_servo_decrement(self) -> None:
-        for servoletter in self.body.selection:
-            if self.servo_mode == "us":
-                self.servos[servoletter].position_us = (
-                    self.servos[servoletter].position_us - self.us_increment
-                )
-            else:
-                self.servos[servoletter].position_angle = (
-                    self.servos[servoletter].position_angle - self.angle_increment
-                )
-            self.refresh_servo_data(servoletter)
-
-    async def action_servo_off(self) -> None:
-        for servoletter in self.body.selection:
-            self.servos[servoletter].stop()
-            self.refresh_servo_data(servoletter)
-
-    async def action_toggle_relay(self) -> None:
+    def _action_toggle_relay(self) -> None:
         self.relay.toggle()
-        # if relay is currently on, then we just came out of modal dialog
+        # if relay is currently on, then we just came out of modal dialog, close it.
         if self.relay.is_active() is True:
-            self.pop_status()
-            await self.bind("\\", "toggle_relay", "Disable Servos")
+            self.dialog.action_close_dialog()
+            self.app.bind("backslash", "toggle_relay", description="Disable Servos")
         else:
-            await self.bind(
-                "\\",
+            self.app.bind(
+                "backslash",
                 (
                     "confirm_y_n('[b]Enable Servos?[/b] Y/N', 'toggle_relay', "
-                    "'pop_status', '[Enable Servos]')"
+                    "'close_dialog', '[Enable Servos]')"
                 ),
-                "Enable Servos",
+                description="Enable Servos",
             )
-            self.footer.regenerate()
+            self.footer._key_text = None
+            self.footer.refresh()
+        # update the status bar
+        self.status.update_status()
 
-    async def action_toggle_multi_select(self) -> None:
-        self.body.multi_select = not self.body.multi_select
+    def unbind(self, key: str) -> None:
+        """Create unbind method - hack - not currently supported in Textual
+        Parameters
+        ----------
+        key : str
+            key to unbind
+        """
+        # Raise exception if key doesn't exist
+        self._bindings.get_key(key)
+        del self._bindings.keys[key]
 
-    async def action_save_servo_config(self) -> None:
-        self.servo_configfile.save()
-        await self.menu.pop_menu(pop_all=True)
-
-    async def action_toggle_config_edit(self) -> None:
-        if self.config.config_edit_mode is True:
-            await self.config.disable_config_edit()
-            if len(self.body.get_selection()) == 1:
-                await self.config.update_config_mapping(
-                    self.servos[self.body.get_selection()[0]]
-                )
-            self.pop_status()
-        else:
-            self.push_status()
-            self.status.message = "Config Edit Mode"
-            await self.config.enable_config_edit()
-            self.footer.regenerate()
+    async def on_body_status_update(self, message: Body.StatusUpdate) -> None:
+        """Let Status Widget know to process an update"""
+        self.status.update_status()
 
 
-def main():
+def clocktime() -> str:
+    from datetime import datetime
 
-    DEFAULT_CONFIG = "config.yml"
+    return datetime.now().strftime("%H:%M:%S")
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--config",
-        help="Configuration file for serial access to servo controller, if "
-        + "'{}' exists it will be loaded automatically ".format(DEFAULT_CONFIG)
-        + "unless this parameter specifies a different config file",
-        default=DEFAULT_CONFIG,
-    )
 
-    parser.add_argument(
-        "--servoconfig",
-        help="Override servo config file specified in {}".format(DEFAULT_CONFIG),
-    )
-
-    parser.add_argument(
-        "--poseconfig",
-        help="Override pose configuration file specified in {}".format(DEFAULT_CONFIG),
-    )
-
-    parser.add_argument(
-        "-t",
-        "--testservo",
-        help=(
-            "testing - don't connect to server controller, serial settings are"
-            " ignored and serial activity is stubbed out."
-        ),
-        action="store_true",
-    )
-
-    parser.add_argument(
-        "-v", "--verbose", help="Increase verbosity", action="store_true"
-    )
-
-    args = parser.parse_args()
-
-    if args.verbose is True:  # smart errors
-        rich.traceback.install(show_locals=True)
-
-    configfile = file_utils.ConfigFile(args.config)
-
-    if args.servoconfig is None:
-        args.servoconfig = configfile.config["servo_config"]
-
-    if args.poseconfig is None:
-        args.poseconfig = configfile.config["pose_config"]
-
-    servolib = importlib.import_module(
-        ".Servo.{}".format(configfile.config["servoboard"]), package="spotbot"
-    )
-
-    if "relay_settings" in configfile.config:
-        relay = gpio.Relay(
-            configfile.config["relay_settings"]["gpio"],
-            configfile.config["relay_settings"]["active_high"],
-        )
-        atexit.register(relay.close)
-    else:
-        relay = None
-
-    # Connect to the servo board and get a controller object
-    servo_ctl = (
-        servolib.ServoController(**configfile.config["serial_settings"])
-        if args.testservo is False
-        else None
-    )
-
-    # load servo configuration file
-    servo_configfile = file_utils.ServoConfiFile(args.servoconfig, servo_ctl)
-    servos = servo_configfile.load()
-
-    # load pose configuraiton file
-    # pose_config=
-
-    try:
-        MyApp.run(
-            log="textual.log",
-            log_verbosity=3,
-            title="Spotmicro Configuration",
-            servo_ctl=servo_ctl,
-            servos=servos,
-            servo_configfile=servo_configfile,
-            relay=relay,
-        )
-    except:
-        if relay is not None:
-            relay.close
-        raise
+def main() -> None:
+    Spotbot().run()
 
 
 if __name__ == "__main__":
