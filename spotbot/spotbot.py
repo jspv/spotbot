@@ -188,17 +188,19 @@ class Spotbot(App):
         self.footer = Footer()
         self.body = Body(servo_layout, id="p1")
         self.status = Status(id="status")
+        self.menu = Placeholder(id="menu")
 
         yield Header()
         yield Container(
-            Horizontal(self.body, Placeholder(id="p2")),
-            # self.body,
-            self.dialog,
+            Horizontal(self.menu, self.body, Placeholder(id="p2")),
             self.status,
             id="mainscreen",
         )
         # yield ConfigArea()
         yield self.footer
+
+        # Modal Dialog
+        yield self.dialog
 
     def action_confirm_y_n(
         self, message: str, confirm_action: str, noconfirm_action: str, title: str = ""
@@ -284,6 +286,14 @@ class Spotbot(App):
     async def on_body_status_update(self, message: Body.StatusUpdate) -> None:
         """Let Status Widget know to process an update"""
         self.status.update_status()
+
+    async def on_dialog_focus_message(self, message: Dialog.FocusMessage) -> None:
+        """Let Body widget know the current focus state"""
+        log(message.focustaken)
+        if message.focustaken is True:
+            self.body.disabled = True
+        else:
+            self.body.disabled = False
 
 
 def clocktime() -> str:

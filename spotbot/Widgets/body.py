@@ -66,6 +66,9 @@ class Body(Static):
         # currently selected servos
         self._selection = []
 
+        # If disabled, mouse will not be processed.
+        self.disabled = False
+
         # the output text, if set to None, will generate new text.
         self._servo_text: Text | None = None
 
@@ -76,26 +79,6 @@ class Body(Static):
                     continue
                 self.bind(row, f"servo_key('{row}')", "", show=False)
                 self.bind(row.lower(), f"servo_key('{row}')", "", show=False)
-
-    async def watch_highlight_key(self, value) -> None:
-        """If highlight key changes we need to regenerate the text."""
-        self._servo_text = None
-
-    async def on_mouse_move(self, event: events.MouseMove) -> None:
-        """Store any key we are moving over."""
-        self.highlight_key = event.style.meta.get("key")
-
-    async def on_leave(self, event: events.Leave) -> None:
-        """Clear any highlight when the mouse leave the widget"""
-        self.highlight_key = None
-
-    # Below is in _footer.py, not sure if I need them yet.
-    # def on_mount(self) -> None:
-    #     watch(self.screen, "focused", self._focus_changed)
-
-    # def _focus_changed(self, focused: Widget | None) -> None:
-    #     self._servo_text = None
-    #     self.refresh()
 
     def __rich_repr__(self) -> rich.repr.Result:
         yield from super().__rich_repr__()
@@ -124,6 +107,7 @@ class Body(Static):
         return table
 
     def key_press(self, key: str) -> None:
+        """hotkey pressed, manage selections and refresh body"""
         if key not in self._selection:
             if self.multi_select is True:
                 self._selection.append(key)
@@ -150,9 +134,6 @@ class Body(Static):
 
     def make_servo_text(self) -> Text:
         self.servo_tables.clear()
-        base_style = self.rich_style
-        highlight_key_style = self.get_component_rich_style("body--highlight-key")
-
         # Each entry in servo_layout represents a table of rows in the order to print
         for table in range(len(self.servo_layout)):
             # create a new table
@@ -164,15 +145,8 @@ class Body(Static):
                     continue
                 (key, desc, servo, us, angle) = self.mappings[row]
                 column_style = "reverse" if key in self._selection else "none"
-                hovered = self.highlight_key == key
-                # hovered = False
                 key_text = Text.assemble(
-                    (
-                        f"({key.upper()})",
-                        highlight_key_style if hovered else base_style,
-                    ),
-                    # add metadata which says what to do when clicked, the 'key'
-                    # metadata is for hovering.
+                    f"({key.upper()})",
                     meta={"@click": f"servo_key('{key}')", "key": key},
                 )
                 self.servo_tables[table].add_row(
@@ -187,7 +161,7 @@ class Body(Static):
         self.layout["left"].update(Align(self.servo_tables[0], align="center"))
         self.layout["right"].update(Align(self.servo_tables[1], align="center"))
 
-        return Panel(self.layout)
+        return self.layout
 
     def render(self) -> RenderResult:
 
@@ -197,6 +171,11 @@ class Body(Static):
 
     def post_render(self, renderable):
         return renderable
+
+    def watch_mouse_over(self, value: bool) -> None:
+        """Update from CSS if mouse over state changes."""
+        if self._has_hover_style and not self.disabled:
+            self.app.update_styles(self)
 
     ###########
     # Actions #
@@ -217,6 +196,9 @@ class Body(Static):
         # Get the footer to force updates
         # hack - changing bindings not currently supported in textual
 
+        # If we're "disabled" - ignore the key presses
+        if self.disabled:
+            return
         footer = self.app.query_one("Footer")
 
         self.key_press(key)

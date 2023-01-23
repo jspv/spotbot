@@ -3,6 +3,7 @@ from textual.binding import Binding, Bindings
 from textual.containers import Container, Horizontal
 from textual.reactive import Reactive
 from textual.widgets import Button, Static
+from textual.message import Message, MessageTarget
 from textual import log
 
 
@@ -10,57 +11,11 @@ class Dialog(Static):
     """Display a modal dialog"""
 
     _show_dialog = Reactive(False)
-    DEFAULT_CSS = """
-    
-    /* The top level dialog (a Container) */
-    Dialog {
-        display: none;
-        dock: top;
-        layer: above;
-        border: round #586e75;
-        align: center middle;
-        min-width: 30%;
-        max-width: 50%;
-        width: auto;
-        max-height: 6;
-        height: 6;
-        box-sizing: content-box;
-        background: $panel;
-        color: $text;
-        padding: 1 0 0 0;
-    }
+    # DEFAULT_CSS = """
 
+    # /* The top level dialog (a Container) */
 
-    .-show-dialog Dialog {
-        display: block;
-    }
-
-
-    /* The button class */
-    Button {
-        width: 1fr;
-        min-width: 10;
-        max-width: 16;
-        margin: 1 4;
-
-    }
-
-    /* Matches the question text in the button */
-    .question {
-        text-style: bold;
-        height: 100%;
-        content-align: center top;
-    }
-
-    /* Matches the button container */
-    .buttons {
-        width: 1fr;
-        height: auto;
-        dock: bottom;
-        align: center middle;
-    }
-
-    """
+    # """
 
     def __init__(
         self,
@@ -85,14 +40,22 @@ class Dialog(Static):
 
         super().__init__(name=name, id=id, classes=classes)
 
+    class FocusMessage(Message):
+        """Message to inform the app that Focus has been taken"""
+
+        def __init__(self, sender: MessageTarget, focustaken=True) -> None:
+            self.focustaken = focustaken
+            super().__init__(sender)
+
     def compose(self) -> ComposeResult:
         yield Container(
-            Static(self.message, classes="question", id="dialog_question"),
+            Static(self.message, id="dialog_question"),
             Horizontal(
                 Button("Yes", variant="success", id="dialog_y"),
                 Button("No", variant="error", id="dialog_n"),
-                classes="buttons",
+                classes="dialog_buttons",
             ),
+            id="dialog",
         )
 
     def watch__show_dialog(self, show_dialog: bool) -> None:
@@ -173,6 +136,7 @@ class Dialog(Static):
             widget.can_focus = False
         self.can_focus = True
         self.focus()
+        self.emit_no_wait(self.FocusMessage(self, focustaken=True))
 
     def _restore_focus(self):
         """restore focus to what it was before we stole it"""
@@ -180,3 +144,4 @@ class Dialog(Static):
             self._focuslist.pop().can_focus = True
         if self._focus_save is not None:
             self.app.set_focus(self._focus_save)
+        self.emit_no_wait(self.FocusMessage(self, focustaken=False))
