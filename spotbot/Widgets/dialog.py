@@ -59,7 +59,7 @@ class Dialog(Static):
         )
 
     def watch__show_dialog(self, show_dialog: bool) -> None:
-        """Called when show_dialog is modified"""
+        """Called when _show_dialog is modified"""
         self.app.set_class(show_dialog, "-show-dialog")
 
     def set_message(self, message: str) -> None:

@@ -56,23 +56,46 @@ Body>.body-header {
     /* color: green; */
 }
 
-
-#menu {
+Menu {
     display: none;
     layer: above;
-    width: 20;
-    border: round;
+    width: 30;
+    height: 100%;
+    border: none;
+    background: $panel;
+}
+
+/* When this class is set, it will show the menu */
+.-show-menu Menu {
+    display: block;
+    link-hover-color: $primary;
+    link-hover-background: $secondary;
+    link-style: none;
+}
+
+Menu>.menu--key-style {
+    text-style: bold;
+    color: $secondary;
+}
+
+Menu>.menu--style {
+    color: $text;
+}
+
+Menu>.menu--key-description-style {
+    color: $text;
 }
 
 
 #mainscreen {}
 
 #status {
-    /* display: none; */
     height: 3;
     border: round;
     margin: 0 0 0 0;
 }
+
+
 
 #p1 {
     /* padding: 2 2; */

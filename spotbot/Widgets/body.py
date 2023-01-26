@@ -2,6 +2,7 @@ from textual.app import ComposeResult, RenderResult
 from textual.widgets import Static
 from textual.binding import Bindings
 from textual.message import Message, MessageTarget
+from textual.reactive import Reactive
 from textual import log
 from textual import events
 from rich.table import Table
@@ -38,6 +39,9 @@ class Body(Static):
     # This is the main screen, enable focus
     can_focus = True
 
+    # If disabled, mouse will not be processed.
+    disabled: Reactive(bool) = Reactive(False)
+
     class StatusUpdate(Message):
         """Message to inform status widget an update is pending"""
 
@@ -64,10 +68,7 @@ class Body(Static):
         self.mappings = {}
 
         # currently selected servos
-        self._selection = []
-
-        # If disabled, mouse will not be processed.
-        self.disabled = False
+        self.selection = []
 
         # the output text, if set to None, will generate new text.
         self._servo_text: Text | None = None
@@ -79,6 +80,7 @@ class Body(Static):
                     continue
                 self.bind(row, f"servo_key('{row}')", "", show=False)
                 self.bind(row.lower(), f"servo_key('{row}')", "", show=False)
+
 
     def __rich_repr__(self) -> rich.repr.Result:
         yield from super().__rich_repr__()
@@ -108,29 +110,30 @@ class Body(Static):
 
     def key_press(self, key: str) -> None:
         """hotkey pressed, manage selections and refresh body"""
-        if key not in self._selection:
+        if key not in self.selection:
             if self.multi_select is True:
-                self._selection.append(key)
+                self.selection.append(key)
             else:
-                self._selection = [key]
+                self.selection = [key]
         else:
             if self.multi_select is True:
-                self._selection.remove(key)
+                self.selection.remove(key)
             else:
-                self._selection.clear()
+                self.selection.clear()
         self._servo_text = None
         self.refresh()
 
     def get_selection(self) -> list:
-        return self._selection
+        return self.selection
 
     async def clear_selection(self) -> None:
-        self._selection.clear()
+        self.selection.clear()
 
     def update_servos(self, mappings: dict) -> None:
         """Update the servo mappings and refresh the widget"""
         self.mappings = mappings
-        # self.refresh()
+        self._servo_text = None
+        self.refresh()
 
     def make_servo_text(self) -> Text:
         self.servo_tables.clear()
@@ -144,11 +147,14 @@ class Body(Static):
                     self.servo_tables[table].add_row("", "", "", "", "")
                     continue
                 (key, desc, servo, us, angle) = self.mappings[row]
-                column_style = "reverse" if key in self._selection else "none"
-                key_text = Text.assemble(
-                    f"({key.upper()})",
-                    meta={"@click": f"servo_key('{key}')", "key": key},
-                )
+                column_style = "reverse" if key in self.selection else "none"
+                if self.disabled is True:
+                    key_text = f"({key.upper()})"
+                else:
+                    key_text = Text.assemble(
+                        f"({key.upper()})",
+                        meta={"@click": f"servo_key('{key}')", "key": key},
+                    )
                 self.servo_tables[table].add_row(
                     key_text,
                     desc,
@@ -172,10 +178,9 @@ class Body(Static):
     def post_render(self, renderable):
         return renderable
 
-    def watch_mouse_over(self, value: bool) -> None:
-        """Update from CSS if mouse over state changes."""
-        if self._has_hover_style and not self.disabled:
-            self.app.update_styles(self)
+    def watch_disabled(self, newval):
+        """if self.disbaled is changed, rebuild the tables"""
+        self._servo_text = None
 
     ###########
     # Actions #
@@ -202,7 +207,7 @@ class Body(Static):
         footer = self.app.query_one("Footer")
 
         self.key_press(key)
-        if len(self._selection) == 0:
+        if len(self.selection) == 0:
             self.unbind("up")
             self.unbind("down")
             self.unbind("0")
@@ -211,9 +216,9 @@ class Body(Static):
             footer.refresh()
         else:
             symbol = "∠" if self.app.servo_mode == "angle" else "µs"
-            self.bind("up", "servo_increment", description=f"Increment {symbol}")
-            self.bind("down", "servo_decrement", description=f"Decrement {symbol}")
-            self.bind("0", "servo_off", description="Servo Off")
+            self.bind("up", "app.servo_increment", description=f"Increment {symbol}")
+            self.bind("down", "app.servo_decrement", description=f"Decrement {symbol}")
+            self.bind("0", "app.servo_off", description="Servo Off")
             # hack to refresh footer, changing bindings not currently in Textual
             footer._key_text = None
             footer.refresh()

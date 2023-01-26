@@ -4,6 +4,7 @@ from textual.widgets import Footer, Header, Static, Button, Placeholder
 from .Widgets.body import Body
 from .Widgets.status import Status
 from .Widgets.dialog import Dialog
+from .Widgets.menu import Menu
 from textual.screen import Screen
 from textual.binding import Binding, Bindings
 from textual import log
@@ -12,6 +13,7 @@ from rich.text import Text
 
 from . import file_utils
 from . import GPIO as gpio
+from . import add_menus
 from .utils import Utils
 
 import sys
@@ -188,7 +190,7 @@ class Spotbot(App):
         self.footer = Footer()
         self.body = Body(servo_layout, id="p1")
         self.status = Status(id="status")
-        self.menu = Placeholder(id="menu")
+        self.menu = Menu(id="menu")
 
         yield Header()
         yield Container(
@@ -222,16 +224,38 @@ class Spotbot(App):
             else "Off",
         )
         self.status.add_entry(
+            key="mode",
+            keymsg="Mode",
+            value=lambda: "∠" if self.servo_mode == "angle" else "µs",
+        )
+
+        self.status.add_entry(
+            key="angle_increment",
+            keymsg="∠ Increment",
+            value=self.utils.get_angle_increment,
+        )
+
+        self.status.add_entry(
+            key="us_increment",
+            keymsg="µs Increment",
+            value=self.utils.get_us_increment,
+        )
+
+        self.status.add_entry(
             key="multi",
             keymsg="Multiselect",
             value=lambda: "[r]On[/r] " if self.body.multi_select else "Off",
         )
-        self.status.regenerate_status_from_dict = True
+        # force a status widget udpdate
+        self.status.update_status()
 
         # load the servo tables with the current servo data
         for servoletter in [chr(i) for i in range(ord("A"), ord("R"))]:
             if servoletter in self.servos:
                 self.refresh_servo_data(servoletter)
+
+        # load the menus
+        add_menus.add_menus(self.menu)
 
         # set focus to the body widget
         self.body.focus()
@@ -251,6 +275,65 @@ class Spotbot(App):
     ###########
     # Actions #
     ###########
+
+    async def action_toggle_servo_mode(self) -> None:
+        if self.servo_mode == "angle":
+            self.servo_mode = "us"
+            self.status.update_entry("mode", "µs")
+            self.status.update_entry(
+                "angle_increment", key_style="none", value_style="none"
+            )
+            self.status.update_entry(
+                "us_increment", key_style="bold blue", value_style="bold blue"
+            )
+        else:
+            self.servo_mode = "angle"
+            self.status.update_entry("mode", "∠")
+            self.status.update_entry(
+                "us_increment", key_style="none", value_style="none"
+            )
+            self.status.update_entry(
+                "angle_increment", key_style="bold blue", value_style="bold blue"
+            )
+
+        self.status.update_status()
+        await self.menu.pop_menu(pop_all=True)
+
+        # Refresh bindings if needed
+        if len(self.body.selection) != 0:
+            symbol = "∠" if self.servo_mode == "angle" else "µs"
+            self.body.bind("up", "servo_increment", f"Increment {symbol}")
+            self.body.bind("down", "servo_decrement", f"Decrement {symbol}")
+            # self.footer.regenerate()
+
+    def action_servo_increment(self) -> None:
+        for servoletter in self.body.selection:
+            if self.servo_mode == "us":
+                self.servos[servoletter].position_us = (
+                    self.servos[servoletter].position_us + self.us_increment
+                )
+            else:
+                self.servos[servoletter].position_angle = (
+                    self.servos[servoletter].position_angle + self.angle_increment
+                )
+            self.refresh_servo_data(servoletter)
+
+    def action_servo_decrement(self) -> None:
+        for servoletter in self.body.selection:
+            if self.servo_mode == "us":
+                self.servos[servoletter].position_us = (
+                    self.servos[servoletter].position_us - self.us_increment
+                )
+            else:
+                self.servos[servoletter].position_angle = (
+                    self.servos[servoletter].position_angle - self.angle_increment
+                )
+            self.refresh_servo_data(servoletter)
+
+    def action_servo_off(self) -> None:
+        for servoletter in self.body.selection:
+            self.servos[servoletter].stop()
+            self.refresh_servo_data(servoletter)
 
     def _action_toggle_relay(self) -> None:
         self.relay.toggle()
@@ -272,6 +355,10 @@ class Spotbot(App):
         # update the status bar
         self.status.update_status()
 
+    def _action_main_menu(self) -> None:
+        """Launch the main menu"""
+        self.menu.load_menu("main")
+
     def unbind(self, key: str) -> None:
         """Create unbind method - hack - not currently supported in Textual
         Parameters
@@ -289,11 +376,15 @@ class Spotbot(App):
 
     async def on_dialog_focus_message(self, message: Dialog.FocusMessage) -> None:
         """Let Body widget know the current focus state"""
-        log(message.focustaken)
         if message.focustaken is True:
             self.body.disabled = True
         else:
             self.body.disabled = False
+
+    async def on_menu_focus_message(self, message: Menu.FocusMessage) -> None:
+        await self.on_dialog_focus_message(message)
+        self.footer._key_text = None
+        self.footer.refresh()
 
 
 def clocktime() -> str:
