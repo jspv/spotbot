@@ -228,6 +228,7 @@ class Spotbot(App):
             keymsg="Mode",
             value=lambda: "∠" if self.servo_mode == "angle" else "µs",
         )
+        self.status.update_entry("mode", highlight_value=True)
 
         self.status.add_entry(
             key="angle_increment",
@@ -244,8 +245,19 @@ class Spotbot(App):
         self.status.add_entry(
             key="multi",
             keymsg="Multiselect",
-            value=lambda: "[r]On[/r] " if self.body.multi_select else "Off",
+            value=lambda: "[r]On[/r]" if self.body.multi_select else "Off",
         )
+
+        # highlight the current servo
+        if self.servo_mode == "us":
+            self.status.update_entry(
+                "us_increment", highlight_key=True, highlight_value=True
+            )
+        else:
+            self.status.update_entry(
+                "angle_increment", highlight_key=True, highlight_value=True
+            )
+
         # force a status widget udpdate
         self.status.update_status()
 
@@ -281,19 +293,19 @@ class Spotbot(App):
             self.servo_mode = "us"
             self.status.update_entry("mode", "µs")
             self.status.update_entry(
-                "angle_increment", key_style="none", value_style="none"
+                "angle_increment", highlight_key=False, highlight_value=False
             )
             self.status.update_entry(
-                "us_increment", key_style="bold blue", value_style="bold blue"
+                "us_increment", highlight_key=True, highlight_value=True
             )
         else:
             self.servo_mode = "angle"
             self.status.update_entry("mode", "∠")
             self.status.update_entry(
-                "us_increment", key_style="none", value_style="none"
+                "us_increment", highlight_key=False, highlight_value=False
             )
             self.status.update_entry(
-                "angle_increment", key_style="bold blue", value_style="bold blue"
+                "angle_increment", highlight_key=True, highlight_value=True
             )
 
         self.status.update_status()
@@ -359,16 +371,17 @@ class Spotbot(App):
         """Launch the main menu"""
         self.menu.load_menu("main")
 
-    def unbind(self, key: str) -> None:
-        """Create unbind method - hack - not currently supported in Textual
-        Parameters
-        ----------
-        key : str
-            key to unbind
-        """
-        # Raise exception if key doesn't exist
-        self._bindings.get_key(key)
-        del self._bindings.keys[key]
+    async def _action_set_us_increment(self, increment: int) -> None:
+        """change the increment value for microseconds"""
+        self.us_increment = increment
+        self.status.update_status()
+        await self.menu.pop_menu(pop_all=True)
+
+    async def _action_set_angle_increment(self, increment: float) -> None:
+        """change the increment value for angles"""
+        self.angle_increment = increment
+        self.status.update_status()
+        await self.menu.pop_menu(pop_all=True)
 
     async def on_body_status_update(self, message: Body.StatusUpdate) -> None:
         """Let Status Widget know to process an update"""
@@ -385,6 +398,17 @@ class Spotbot(App):
         await self.on_dialog_focus_message(message)
         self.footer._key_text = None
         self.footer.refresh()
+
+    def unbind(self, key: str) -> None:
+        """Create unbind method - hack - not currently supported in Textual
+        Parameters
+        ----------
+        key : str
+            key to unbind
+        """
+        # Raise exception if key doesn't exist
+        self._bindings.get_key(key)
+        del self._bindings.keys[key]
 
 
 def clocktime() -> str:

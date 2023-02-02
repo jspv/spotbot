@@ -89,12 +89,27 @@ Menu>.menu--key-description-style {
 
 #mainscreen {}
 
-#status {
+Status {
     height: 3;
     border: round;
     margin: 0 0 0 0;
 }
 
+Status>.status--key-style {
+    color: $text;
+}
+
+Status>.status--value-style {
+    color: $text;
+}
+
+Status>.status--highlight-key-style {
+    color: $secondary;
+}
+
+Status>.status--highlight-value-style {
+    color: $secondary;
+}
 
 
 #p1 {

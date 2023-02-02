@@ -3,7 +3,7 @@ from textual import log
 from textual.reactive import Reactive
 from textual.widgets import Static
 from rich.text import Text
-from rich.style import StyleType
+from rich.style import StyleType, Style
 from rich.padding import Padding
 from rich.console import RenderableType
 from typing import Union, Callable
@@ -17,6 +17,13 @@ class Status(Static):
     _regenerate_status_from_dict: Reactive(bool) = Reactive(False)
     status_stack = []  # stack of status settings
 
+    COMPONENT_CLASSES = {
+        "status--highlight-key-style",
+        "status--highlight-value-style",
+        "status--key-style",
+        "status--value-style",
+    }
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
@@ -29,18 +36,18 @@ class Status(Static):
         self,
         key: str,
         keymsg: RenderableType,
-        value: Union[RenderableType, Callable],
-        key_style: StyleType = "none",
-        value_style: StyleType = "none",
+        value: RenderableType | Callable,
     ) -> None:
+        value_style = self.get_component_rich_style("status--value-style")
+        key_style = self.get_component_rich_style("status--key-style")
         self._entries[key] = (keymsg, key_style, value, value_style)
 
     def update_entry(
         self,
         key: str,
-        value: Union[RenderableType, Callable] = None,
-        key_style: StyleType = None,
-        value_style: StyleType = None,
+        value: RenderableType | Callable = None,
+        highlight_key: bool | StyleType = False,
+        highlight_value: bool | StyleType = False,
     ) -> None:
         """update a status as a key/value with styles for formatting.
 
@@ -51,20 +58,28 @@ class Status(Static):
         value : Union[RenderableType, Callable], optional
             Value or Value generator (called every second), by default None which
             would not change the exiting value (good for changing styling only)
-        key_style : StyleType, optional
-            style for the key, by default None which leave the styling the way it was
-            initally set.
-        value_style : StyleType, optional
-            style for the value, by default None which leave the styling the way it was
-            initally set.
+        hightlight_key: bool
+            Should the key/value be highlighted
         """
-        (keymsg, old_key_style, old_value, old_value_style) = self._entries[key]
+        (keymsg, old_keystyle, old_value, old_valstyle) = self._entries[key]
+
+        if not isinstance(highlight_key, Style):
+            value_style = (
+                self.get_component_rich_style("status--highlight-value-style")
+                if highlight_value is True
+                else self.get_component_rich_style("status--value-style")
+            )
+
+        if not isinstance(highlight_value, Style):
+            key_style = (
+                self.get_component_rich_style("status--highlight-key-style")
+                if highlight_key is True
+                else self.get_component_rich_style("status--value-style")
+            )
+
         if value is None:
             value = old_value
-        if key_style is None:
-            key_style = old_key_style
-        if value_style is None:
-            value_style = old_value_style
+
         self._entries[key] = (keymsg, key_style, value, value_style)
 
     def update_status(self) -> None:
@@ -74,7 +89,6 @@ class Status(Static):
         if self._regenerate_status_from_dict is True or self.message is None:
             # build the text container
             self.message = Text(
-                # style=self.style,
                 no_wrap=True,
                 overflow="ellipsis",
                 justify="left",
@@ -87,10 +101,16 @@ class Status(Static):
                     # Print a seperator between items
                     self.message.append(" | ")
                 count += 1
-                self.message.append_text(Text.from_markup(keymsg, style=key_style))
+                # If it's a str, treat it as markup
+                if isinstance(keymsg, str):
+                    self.message.append_text(Text.from_markup(keymsg, style=key_style))
+                else:
+                    self.message.append_text(keymsg)
                 self.message.append(": ")
                 if isinstance(value, Callable):
                     value = value()
-                self.message.append_text(Text.from_markup(value, style=value_style))
+                if isinstance(value, str):
+                    value = Text.from_markup(value, style=value_style)
+                self.message.append_text(value)
         self._regenerate_status_from_dict = False
         return Padding(self.message, pad=(0, 1, 0, 2), expand=True)
